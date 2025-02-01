@@ -1,0 +1,1 @@
+Start-BitsTransfer -Source "https://software-download.microsoft.com/download/pr/17763.737.190906-2324.rs5_release_svc_refresh_SERVER_EVAL_x64FRE_en-us_1.iso" -Destination "d:\setup\server\server2019\svr2019.iso"

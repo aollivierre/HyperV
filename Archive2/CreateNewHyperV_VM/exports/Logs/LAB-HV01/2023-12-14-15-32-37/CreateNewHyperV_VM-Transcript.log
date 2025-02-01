@@ -1,0 +1,54 @@
+**********************
+PowerShell transcript start
+Start time: 20231214153237
+Username: LAB-HV01\Administrator
+RunAs User: LAB-HV01\Administrator
+Configuration Name: 
+Machine: LAB-HV01 (Microsoft Windows NT 10.0.20348.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -NoProfile -ExecutionPolicy Bypass -Command Import-Module 'c:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-2023.8.0\modules\PowerShellEditorServices\PowerShellEditorServices.psd1'; Start-EditorServices -HostName 'Visual Studio Code Host' -HostProfileId 'Microsoft.VSCode' -HostVersion '2023.8.0' -AdditionalModules @('PowerShellEditorServices.VSCode') -BundledModulesPath 'c:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-2023.8.0\modules' -EnableConsoleRepl -StartupBanner "PowerShell Extension v2023.8.0
+Copyright (c) Microsoft Corporation.
+
+https://aka.ms/vscode-powershell
+Type 'help' to get help.
+" -LogLevel 'Normal' -LogPath 'c:\Users\Administrator\AppData\Roaming\Code\User\globalStorage\ms-vscode.powershell\logs\1702567385-bee2f42b-24c6-4d74-9f8e-fb446c4c51c21702567384347\EditorServices.log' -SessionDetailsPath 'c:\Users\Administrator\AppData\Roaming\Code\User\globalStorage\ms-vscode.powershell\sessions\PSES-VSCode-19308-132999.json' -FeatureFlags @() 
+Process ID: 10168
+PSVersion: 7.4.0
+PSEdition: Core
+GitCommitId: 7.4.0
+OS: Microsoft Windows 10.0.20348
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+2023-12-14 15:32:38 LAB-HV01: [INFO] [2-Create-HyperV_VM8-withlogging.ps1] Logging works
+2023-12-14 15:32:39 LAB-HV01: [INFO] [2-Create-HyperV_VM8-withlogging.ps1] Starting main script execution
+2023-12-14 15:32:39 LAB-HV01: [INFO] [Initialize-HyperVServices] Starting Initialize-HyperVServices function
+2023-12-14 15:32:39 LAB-HV01: [INFO] [Initialize-HyperVServices] Hyper-V services started
+2023-12-14 15:32:39 LAB-HV01: [INFO] [Initialize-HyperVServices] Exiting Initialize-HyperVServices function
+2023-12-14 15:32:39 LAB-HV01: [INFO] [EnsureUntrustedGuardianExists] Checking for the existence of the guardian: UntrustedGuardian
+2023-12-14 15:32:39 LAB-HV01: [INFO] [EnsureUntrustedGuardianExists] Guardian UntrustedGuardian already exists
+2023-12-14 15:32:39 LAB-HV01: [INFO] [CreateVMFolder] Starting CreateVMFolder function
+2023-12-14 15:32:39 LAB-HV01: [INFO] [CreateVMFolder] VM folder created at C:\VM\Test0080-TOGB-EJ_20231214_153239
+2023-12-14 15:32:39 LAB-HV01: [INFO] [CreateVMFolder] Exiting CreateVMFolder function
+2023-12-14 15:32:39 LAB-HV01: [INFO] [New-CustomVM] Starting New-CustomVM function
+2023-12-14 15:32:42 LAB-HV01: [INFO] [New-CustomVM] VM Test0080-TOGB-EJ_20231214_153239 created with dynamic memory
+2023-12-14 15:32:42 LAB-HV01: [INFO] [New-CustomVM] Exiting New-CustomVM function
+2023-12-14 15:32:42 LAB-HV01: [INFO] [Add-DVDDriveToVM] Starting Add-DVDDriveToVM function
+2023-12-14 15:32:43 LAB-HV01: [INFO] [Add-DVDDriveToVM] DVD drive added to Test0080-TOGB-EJ_20231214_153239
+2023-12-14 15:32:43 LAB-HV01: [INFO] [Add-DVDDriveToVM] Exiting Add-DVDDriveToVM function
+2023-12-14 15:32:43 LAB-HV01: [INFO] [ConfigureVMBoot] Starting ConfigureVMBoot function
+2023-12-14 15:32:43 LAB-HV01: [INFO] [ConfigureVMBoot] VM Boot configured for Test0080-TOGB-EJ_20231214_153239
+2023-12-14 15:32:43 LAB-HV01: [INFO] [ConfigureVMBoot] Exiting ConfigureVMBoot function
+2023-12-14 15:32:43 LAB-HV01: [INFO] [ConfigureVM] Starting ConfigureVM function
+2023-12-14 15:32:43 LAB-HV01: [INFO] [ConfigureVM] VM Test0080-TOGB-EJ_20231214_153239 configured
+2023-12-14 15:32:43 LAB-HV01: [INFO] [ConfigureVM] Exiting ConfigureVM function
+2023-12-14 15:32:43 LAB-HV01: [INFO] [EnableVMTPM] Starting Enable-VMTPM function
+2023-12-14 15:32:44 LAB-HV01: [INFO] [EnableVMTPM] TPM enabled for Test0080-TOGB-EJ_20231214_153239
+2023-12-14 15:32:44 LAB-HV01: [INFO] [EnableVMTPM] Exiting Enable-VMTPM function
+2023-12-14 15:32:44 LAB-HV01: [INFO] [2-Create-HyperV_VM8-withlogging.ps1] Completed main script execution
+**********************
+PowerShell transcript end
+End time: 20231214153244
+**********************

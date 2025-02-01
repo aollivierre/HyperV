@@ -1,0 +1,1 @@
+.\PsExec64.exe -accepteula -i -d -s powershell.exe

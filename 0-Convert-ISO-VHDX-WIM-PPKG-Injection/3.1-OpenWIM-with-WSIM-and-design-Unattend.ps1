@@ -1,0 +1,1 @@
+#open .wim file (that you captured from the VHDX) with Windows System Image Manager and then create your unattned.xml file

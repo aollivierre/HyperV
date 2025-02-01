@@ -1,0 +1,548 @@
+**********************
+PowerShell transcript start
+Start time: 20231210173056
+Username: LAB-HV01\Administrator
+RunAs User: LAB-HV01\Administrator
+Configuration Name: 
+Machine: LAB-HV01 (Microsoft Windows NT 10.0.20348.0)
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -NoProfile -ExecutionPolicy Bypass -Command Import-Module 'c:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-2023.8.0\modules\PowerShellEditorServices\PowerShellEditorServices.psd1'; Start-EditorServices -HostName 'Visual Studio Code Host' -HostProfileId 'Microsoft.VSCode' -HostVersion '2023.8.0' -AdditionalModules @('PowerShellEditorServices.VSCode') -BundledModulesPath 'c:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-2023.8.0\modules' -EnableConsoleRepl -StartupBanner "PowerShell Extension v2023.8.0
+Copyright (c) Microsoft Corporation.
+
+https://aka.ms/vscode-powershell
+Type 'help' to get help.
+" -LogLevel 'Normal' -LogPath 'c:\Users\Administrator\AppData\Roaming\Code\User\globalStorage\ms-vscode.powershell\logs\1701580148-6986b5fd-3118-46e1-a72b-a8ec1cdbda921701580147666\EditorServices.log' -SessionDetailsPath 'c:\Users\Administrator\AppData\Roaming\Code\User\globalStorage\ms-vscode.powershell\sessions\PSES-VSCode-6772-100873.json' -FeatureFlags @() 
+Process ID: 13648
+PSVersion: 7.4.0
+PSEdition: Core
+GitCommitId: 7.4.0
+OS: Microsoft Windows 10.0.20348
+Platform: Win32NT
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1, 6.0, 7.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+WSManStackVersion: 3.0
+**********************
+Did not find CSV file at C:\code\CreateNewHyperV_VM\exports\CSV\LAB-HV01
+Creating CSV file at C:\code\CreateNewHyperV_VM\exports\CSV\LAB-HV01
+Created CSV file at C:\code\CreateNewHyperV_VM\exports\CSV\LAB-HV01
+2023-12-10 17:30:56 LAB-HV01: [INFO] [2-Create-HyperV_VM7-withlogging.ps1] Logging works
+2023-12-10 17:30:56 LAB-HV01: [INFO] [2-Create-HyperV_VM7-withlogging.ps1] Starting main script execution
+2023-12-10 17:30:57 LAB-HV01: [INFO] [Initialize-HyperVServices] Starting Initialize-HyperVServices function
+2023-12-10 17:30:57 LAB-HV01: [INFO] [Initialize-HyperVServices] Hyper-V services started
+2023-12-10 17:30:57 LAB-HV01: [INFO] [Initialize-HyperVServices] Exiting Initialize-HyperVServices function
+2023-12-10 17:30:57 LAB-HV01: [ERROR] [2-Create-HyperV_VM7-withlogging.ps1] Error encountered: The term 'Ensure-UntrustedGuardianExists' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Check the spelling of the name, or if a path was included, verify that the path is correct and try again..Exception
+]633;E;. 'D:\x5cCode\x5cGitHub\x5cCB\x5cCB\x5cHyper-V\x5c2-Create-HyperV_VM\x5cLatest\x5c2-Create-HyperV_VM7-withlogging.ps1']633;D;0]633;A]633;P;Cwd=D:\x5cCode\x5cGitHub\x5cCBPS D:\Code\GitHub\CB> ]633;B
+PS>CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="ListImported"; value="True"
+>> ParameterBinding(Get-Command): name="CommandType"; value="Alias"
+
+CommandType     Name                                               Version    Source
+-----------     ----                                               -------    ------
+Alias           % -> ForEach-Object
+Alias           ? -> Where-Object
+Alias           ac -> Add-Content
+Alias           Add-WindowsFeature                                 1.0        ServerManager
+Alias           cat -> Get-Content
+Alias           cd -> Set-Location
+Alias           chdir -> Set-Location
+Alias           clc -> Clear-Content
+Alias           clear -> Clear-Host
+Alias           clhy -> Clear-History
+Alias           cli -> Clear-Item
+Alias           clp -> Clear-ItemProperty
+Alias           cls -> Clear-Host
+Alias           clv -> Clear-Variable
+Alias           cnsn -> Connect-PSSession
+Alias           compare -> Compare-Object
+Alias           copy -> Copy-Item
+Alias           cp -> Copy-Item
+Alias           cpi -> Copy-Item
+Alias           cpp -> Copy-ItemProperty
+Alias           cvpa -> Convert-Path
+Alias           dbp -> Disable-PSBreakpoint
+Alias           del -> Remove-Item
+Alias           diff -> Compare-Object
+Alias           dir -> Get-ChildItem
+Alias           dnsn -> Disconnect-PSSession
+Alias           ebp -> Enable-PSBreakpoint
+Alias           echo -> Write-Output
+Alias           epal -> Export-Alias
+Alias           epcsv -> Export-Csv
+Alias           erase -> Remove-Item
+Alias           etsn -> Enter-PSSession
+Alias           exsn -> Exit-PSSession
+Alias           fc -> Format-Custom
+Alias           fhx -> Format-Hex                                  7.0.0.0    Microsoft.PowerShell.Utility
+Alias           fl -> Format-List
+Alias           foreach -> ForEach-Object
+Alias           ft -> Format-Table
+Alias           fw -> Format-Wide
+Alias           gal -> Get-Alias
+Alias           gbp -> Get-PSBreakpoint
+Alias           gc -> Get-Content
+Alias           gcb -> Get-Clipboard                               7.0.0.0    Microsoft.PowerShell.Management
+Alias           gci -> Get-ChildItem
+Alias           gcm -> Get-Command
+Alias           gcs -> Get-PSCallStack
+Alias           gdr -> Get-PSDrive
+Alias           gerr -> Get-Error
+Alias           ghy -> Get-History
+Alias           gi -> Get-Item
+Alias           gin -> Get-ComputerInfo                            7.0.0.0    Microsoft.PowerShell.Management
+Alias           gjb -> Get-Job
+Alias           gl -> Get-Location
+Alias           gm -> Get-Member
+Alias           gmo -> Get-Module
+Alias           gp -> Get-ItemProperty
+Alias           gps -> Get-Process
+Alias           gpv -> Get-ItemPropertyValue
+Alias           group -> Group-Object
+Alias           gsn -> Get-PSSession
+Alias           gsv -> Get-Service
+Alias           gtz -> Get-TimeZone                                7.0.0.0    Microsoft.PowerShell.Management
+Alias           gu -> Get-Unique
+Alias           gv -> Get-Variable
+Alias           h -> Get-History
+Alias           history -> Get-History
+Alias           icm -> Invoke-Command
+Alias           iex -> Invoke-Expression
+Alias           ihy -> Invoke-History
+Alias           ii -> Invoke-Item
+Alias           ipal -> Import-Alias
+Alias           ipcsv -> Import-Csv
+Alias           ipmo -> Import-Module
+Alias           irm -> Invoke-RestMethod
+Alias           iwr -> Invoke-WebRequest
+Alias           kill -> Stop-Process
+Alias           ls -> Get-ChildItem
+Alias           man -> help
+Alias           md -> mkdir
+Alias           measure -> Measure-Object
+Alias           mi -> Move-Item
+Alias           mount -> New-PSDrive
+Alias           move -> Move-Item
+Alias           mp -> Move-ItemProperty
+Alias           mv -> Move-Item
+Alias           nal -> New-Alias
+Alias           ndr -> New-PSDrive
+Alias           ni -> New-Item
+Alias           nmo -> New-Module
+Alias           nsn -> New-PSSession
+Alias           nv -> New-Variable
+Alias           ogv -> Out-GridView
+Alias           oh -> Out-Host
+Alias           popd -> Pop-Location
+Alias           ps -> Get-Process
+Alias           psedit -> Open-EditorFile                          0.2.0      PowerShellEditorServices.Commands
+Alias           pushd -> Push-Location
+Alias           pwd -> Get-Location
+Alias           r -> Invoke-History
+Alias           rbp -> Remove-PSBreakpoint
+Alias           rcjb -> Receive-Job
+Alias           rcsn -> Receive-PSSession
+Alias           rd -> Remove-Item
+Alias           rdr -> Remove-PSDrive
+Alias           Remove-WindowsFeature                              1.0        ServerManager
+Alias           ren -> Rename-Item
+Alias           ri -> Remove-Item
+Alias           rjb -> Remove-Job
+Alias           rm -> Remove-Item
+Alias           rmdir -> Remove-Item
+Alias           rmo -> Remove-Module
+Alias           rni -> Rename-Item
+Alias           rnp -> Rename-ItemProperty
+Alias           rp -> Remove-ItemProperty
+Alias           rsn -> Remove-PSSession
+Alias           rv -> Remove-Variable
+Alias           rvpa -> Resolve-Path
+Alias           sajb -> Start-Job
+Alias           sal -> Set-Alias
+Alias           saps -> Start-Process
+Alias           sasv -> Start-Service
+Alias           sbp -> Set-PSBreakpoint
+Alias           scb -> Set-Clipboard                               7.0.0.0    Microsoft.PowerShell.Management
+Alias           select -> Select-Object
+Alias           set -> Set-Variable
+Alias           shcm -> Show-Command
+Alias           si -> Set-Item
+Alias           sl -> Set-Location
+Alias           sleep -> Start-Sleep
+Alias           sls -> Select-String
+Alias           sort -> Sort-Object
+Alias           sp -> Set-ItemProperty
+Alias           spjb -> Stop-Job
+Alias           spps -> Stop-Process
+Alias           spsv -> Stop-Service
+Alias           start -> Start-Process
+Alias           stz -> Set-TimeZone                                7.0.0.0    Microsoft.PowerShell.Management
+Alias           sv -> Set-Variable
+Alias           tee -> Tee-Object
+Alias           type -> Get-Content
+Alias           where -> Where-Object
+Alias           wjb -> Wait-Job
+Alias           write -> Write-Output
+
+PS>CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="ListImported"; value="True"
+>> ParameterBinding(Get-Command): name="CommandType"; value="Alias"
+
+CommandType     Name                                               Version    Source
+-----------     ----                                               -------    ------
+Alias           % -> ForEach-Object
+Alias           ? -> Where-Object
+Alias           ac -> Add-Content
+Alias           Add-WindowsFeature                                 1.0        ServerManager
+Alias           cat -> Get-Content
+Alias           cd -> Set-Location
+Alias           chdir -> Set-Location
+Alias           clc -> Clear-Content
+Alias           clear -> Clear-Host
+Alias           clhy -> Clear-History
+Alias           cli -> Clear-Item
+Alias           clp -> Clear-ItemProperty
+Alias           cls -> Clear-Host
+Alias           clv -> Clear-Variable
+Alias           cnsn -> Connect-PSSession
+Alias           compare -> Compare-Object
+Alias           copy -> Copy-Item
+Alias           cp -> Copy-Item
+Alias           cpi -> Copy-Item
+Alias           cpp -> Copy-ItemProperty
+Alias           cvpa -> Convert-Path
+Alias           dbp -> Disable-PSBreakpoint
+Alias           del -> Remove-Item
+Alias           diff -> Compare-Object
+Alias           dir -> Get-ChildItem
+Alias           dnsn -> Disconnect-PSSession
+Alias           ebp -> Enable-PSBreakpoint
+Alias           echo -> Write-Output
+Alias           epal -> Export-Alias
+Alias           epcsv -> Export-Csv
+Alias           erase -> Remove-Item
+Alias           etsn -> Enter-PSSession
+Alias           exsn -> Exit-PSSession
+Alias           fc -> Format-Custom
+Alias           fhx -> Format-Hex                                  7.0.0.0    Microsoft.PowerShell.Utility
+Alias           fl -> Format-List
+Alias           foreach -> ForEach-Object
+Alias           ft -> Format-Table
+Alias           fw -> Format-Wide
+Alias           gal -> Get-Alias
+Alias           gbp -> Get-PSBreakpoint
+Alias           gc -> Get-Content
+Alias           gcb -> Get-Clipboard                               7.0.0.0    Microsoft.PowerShell.Management
+Alias           gci -> Get-ChildItem
+Alias           gcm -> Get-Command
+Alias           gcs -> Get-PSCallStack
+Alias           gdr -> Get-PSDrive
+Alias           gerr -> Get-Error
+Alias           ghy -> Get-History
+Alias           gi -> Get-Item
+Alias           gin -> Get-ComputerInfo                            7.0.0.0    Microsoft.PowerShell.Management
+Alias           gjb -> Get-Job
+Alias           gl -> Get-Location
+Alias           gm -> Get-Member
+Alias           gmo -> Get-Module
+Alias           gp -> Get-ItemProperty
+Alias           gps -> Get-Process
+Alias           gpv -> Get-ItemPropertyValue
+Alias           group -> Group-Object
+Alias           gsn -> Get-PSSession
+Alias           gsv -> Get-Service
+Alias           gtz -> Get-TimeZone                                7.0.0.0    Microsoft.PowerShell.Management
+Alias           gu -> Get-Unique
+Alias           gv -> Get-Variable
+Alias           h -> Get-History
+Alias           history -> Get-History
+Alias           icm -> Invoke-Command
+Alias           iex -> Invoke-Expression
+Alias           ihy -> Invoke-History
+Alias           ii -> Invoke-Item
+Alias           ipal -> Import-Alias
+Alias           ipcsv -> Import-Csv
+Alias           ipmo -> Import-Module
+Alias           irm -> Invoke-RestMethod
+Alias           iwr -> Invoke-WebRequest
+Alias           kill -> Stop-Process
+Alias           ls -> Get-ChildItem
+Alias           man -> help
+Alias           md -> mkdir
+Alias           measure -> Measure-Object
+Alias           mi -> Move-Item
+Alias           mount -> New-PSDrive
+Alias           move -> Move-Item
+Alias           mp -> Move-ItemProperty
+Alias           mv -> Move-Item
+Alias           nal -> New-Alias
+Alias           ndr -> New-PSDrive
+Alias           ni -> New-Item
+Alias           nmo -> New-Module
+Alias           nsn -> New-PSSession
+Alias           nv -> New-Variable
+Alias           ogv -> Out-GridView
+Alias           oh -> Out-Host
+Alias           popd -> Pop-Location
+Alias           ps -> Get-Process
+Alias           psedit -> Open-EditorFile                          0.2.0      PowerShellEditorServices.Commands
+Alias           pushd -> Push-Location
+Alias           pwd -> Get-Location
+Alias           r -> Invoke-History
+Alias           rbp -> Remove-PSBreakpoint
+Alias           rcjb -> Receive-Job
+Alias           rcsn -> Receive-PSSession
+Alias           rd -> Remove-Item
+Alias           rdr -> Remove-PSDrive
+Alias           Remove-WindowsFeature                              1.0        ServerManager
+Alias           ren -> Rename-Item
+Alias           ri -> Remove-Item
+Alias           rjb -> Remove-Job
+Alias           rm -> Remove-Item
+Alias           rmdir -> Remove-Item
+Alias           rmo -> Remove-Module
+Alias           rni -> Rename-Item
+Alias           rnp -> Rename-ItemProperty
+Alias           rp -> Remove-ItemProperty
+Alias           rsn -> Remove-PSSession
+Alias           rv -> Remove-Variable
+Alias           rvpa -> Resolve-Path
+Alias           sajb -> Start-Job
+Alias           sal -> Set-Alias
+Alias           saps -> Start-Process
+Alias           sasv -> Start-Service
+Alias           sbp -> Set-PSBreakpoint
+Alias           scb -> Set-Clipboard                               7.0.0.0    Microsoft.PowerShell.Management
+Alias           select -> Select-Object
+Alias           set -> Set-Variable
+Alias           shcm -> Show-Command
+Alias           si -> Set-Item
+Alias           sl -> Set-Location
+Alias           sleep -> Start-Sleep
+Alias           sls -> Select-String
+Alias           sort -> Sort-Object
+Alias           sp -> Set-ItemProperty
+Alias           spjb -> Stop-Job
+Alias           spps -> Stop-Process
+Alias           spsv -> Stop-Service
+Alias           start -> Start-Process
+Alias           stz -> Set-TimeZone                                7.0.0.0    Microsoft.PowerShell.Management
+Alias           sv -> Set-Variable
+Alias           tee -> Tee-Object
+Alias           type -> Get-Content
+Alias           where -> Where-Object
+Alias           wjb -> Wait-Job
+Alias           write -> Write-Output
+
+PS>CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="ListImported"; value="True"
+>> ParameterBinding(Get-Command): name="CommandType"; value="Alias"
+
+CommandType     Name                                               Version    Source
+-----------     ----                                               -------    ------
+Alias           % -> ForEach-Object
+Alias           ? -> Where-Object
+Alias           ac -> Add-Content
+Alias           Add-WindowsFeature                                 1.0        ServerManager
+Alias           cat -> Get-Content
+Alias           cd -> Set-Location
+Alias           chdir -> Set-Location
+Alias           clc -> Clear-Content
+Alias           clear -> Clear-Host
+Alias           clhy -> Clear-History
+Alias           cli -> Clear-Item
+Alias           clp -> Clear-ItemProperty
+Alias           cls -> Clear-Host
+Alias           clv -> Clear-Variable
+Alias           cnsn -> Connect-PSSession
+Alias           compare -> Compare-Object
+Alias           copy -> Copy-Item
+Alias           cp -> Copy-Item
+Alias           cpi -> Copy-Item
+Alias           cpp -> Copy-ItemProperty
+Alias           cvpa -> Convert-Path
+Alias           dbp -> Disable-PSBreakpoint
+Alias           del -> Remove-Item
+Alias           diff -> Compare-Object
+Alias           dir -> Get-ChildItem
+Alias           dnsn -> Disconnect-PSSession
+Alias           ebp -> Enable-PSBreakpoint
+Alias           echo -> Write-Output
+Alias           epal -> Export-Alias
+Alias           epcsv -> Export-Csv
+Alias           erase -> Remove-Item
+Alias           etsn -> Enter-PSSession
+Alias           exsn -> Exit-PSSession
+Alias           fc -> Format-Custom
+Alias           fhx -> Format-Hex                                  7.0.0.0    Microsoft.PowerShell.Utility
+Alias           fl -> Format-List
+Alias           foreach -> ForEach-Object
+Alias           ft -> Format-Table
+Alias           fw -> Format-Wide
+Alias           gal -> Get-Alias
+Alias           gbp -> Get-PSBreakpoint
+Alias           gc -> Get-Content
+Alias           gcb -> Get-Clipboard                               7.0.0.0    Microsoft.PowerShell.Management
+Alias           gci -> Get-ChildItem
+Alias           gcm -> Get-Command
+Alias           gcs -> Get-PSCallStack
+Alias           gdr -> Get-PSDrive
+Alias           gerr -> Get-Error
+Alias           ghy -> Get-History
+Alias           gi -> Get-Item
+Alias           gin -> Get-ComputerInfo                            7.0.0.0    Microsoft.PowerShell.Management
+Alias           gjb -> Get-Job
+Alias           gl -> Get-Location
+Alias           gm -> Get-Member
+Alias           gmo -> Get-Module
+Alias           gp -> Get-ItemProperty
+Alias           gps -> Get-Process
+Alias           gpv -> Get-ItemPropertyValue
+Alias           group -> Group-Object
+Alias           gsn -> Get-PSSession
+Alias           gsv -> Get-Service
+Alias           gtz -> Get-TimeZone                                7.0.0.0    Microsoft.PowerShell.Management
+Alias           gu -> Get-Unique
+Alias           gv -> Get-Variable
+Alias           h -> Get-History
+Alias           history -> Get-History
+Alias           icm -> Invoke-Command
+Alias           iex -> Invoke-Expression
+Alias           ihy -> Invoke-History
+Alias           ii -> Invoke-Item
+Alias           ipal -> Import-Alias
+Alias           ipcsv -> Import-Csv
+Alias           ipmo -> Import-Module
+Alias           irm -> Invoke-RestMethod
+Alias           iwr -> Invoke-WebRequest
+Alias           kill -> Stop-Process
+Alias           ls -> Get-ChildItem
+Alias           man -> help
+Alias           md -> mkdir
+Alias           measure -> Measure-Object
+Alias           mi -> Move-Item
+Alias           mount -> New-PSDrive
+Alias           move -> Move-Item
+Alias           mp -> Move-ItemProperty
+Alias           mv -> Move-Item
+Alias           nal -> New-Alias
+Alias           ndr -> New-PSDrive
+Alias           ni -> New-Item
+Alias           nmo -> New-Module
+Alias           nsn -> New-PSSession
+Alias           nv -> New-Variable
+Alias           ogv -> Out-GridView
+Alias           oh -> Out-Host
+Alias           popd -> Pop-Location
+Alias           ps -> Get-Process
+Alias           psedit -> Open-EditorFile                          0.2.0      PowerShellEditorServices.Commands
+Alias           pushd -> Push-Location
+Alias           pwd -> Get-Location
+Alias           r -> Invoke-History
+Alias           rbp -> Remove-PSBreakpoint
+Alias           rcjb -> Receive-Job
+Alias           rcsn -> Receive-PSSession
+Alias           rd -> Remove-Item
+Alias           rdr -> Remove-PSDrive
+Alias           Remove-WindowsFeature                              1.0        ServerManager
+Alias           ren -> Rename-Item
+Alias           ri -> Remove-Item
+Alias           rjb -> Remove-Job
+Alias           rm -> Remove-Item
+Alias           rmdir -> Remove-Item
+Alias           rmo -> Remove-Module
+Alias           rni -> Rename-Item
+Alias           rnp -> Rename-ItemProperty
+Alias           rp -> Remove-ItemProperty
+Alias           rsn -> Remove-PSSession
+Alias           rv -> Remove-Variable
+Alias           rvpa -> Resolve-Path
+Alias           sajb -> Start-Job
+Alias           sal -> Set-Alias
+Alias           saps -> Start-Process
+Alias           sasv -> Start-Service
+Alias           sbp -> Set-PSBreakpoint
+Alias           scb -> Set-Clipboard                               7.0.0.0    Microsoft.PowerShell.Management
+Alias           select -> Select-Object
+Alias           set -> Set-Variable
+Alias           shcm -> Show-Command
+Alias           si -> Set-Item
+Alias           sl -> Set-Location
+Alias           sleep -> Start-Sleep
+Alias           sls -> Select-String
+Alias           sort -> Sort-Object
+Alias           sp -> Set-ItemProperty
+Alias           spjb -> Stop-Job
+Alias           spps -> Stop-Process
+Alias           spsv -> Stop-Service
+Alias           start -> Start-Process
+Alias           stz -> Set-TimeZone                                7.0.0.0    Microsoft.PowerShell.Management
+Alias           sv -> Set-Variable
+Alias           tee -> Tee-Object
+Alias           type -> Get-Content
+Alias           where -> Where-Object
+Alias           wjb -> Wait-Job
+Alias           write -> Write-Output
+
+PS>CommandInvocation(Get-Command): "Get-Command"
+>> ParameterBinding(Get-Command): name="ErrorAction"; value="Ignore"
+>> ParameterBinding(Get-Command): name="Name"; value="EnsureUntrustedGuardianExists"
+
+CommandType     Name                                               Version    Source
+-----------     ----                                               -------    ------
+Function        EnsureUntrustedGuardianExists
+
+PS>CommandInvocation(Get-Help): "Get-Help"
+>> ParameterBinding(Get-Help): name="Name"; value="EnsureUntrustedGuardianExists"
+>> ParameterBinding(Get-Help): name="Online"; value="False"
+>> ParameterBinding(Get-Help): name="ErrorAction"; value="Ignore"
+
+NAME
+    EnsureUntrustedGuardianExists
+
+SYNTAX
+    EnsureUntrustedGuardianExists [[-GuardianName] <string>]
+
+
+ALIASES
+    None
+
+
+REMARKS
+    None
+
+
+]633;E]633;D]633;A]633;P;Cwd=D:\x5cCode\x5cGitHub\x5cCBPS D:\Code\GitHub\CB> ]633;B
+PS>. 'D:\Code\GitHub\CB\CB\Hyper-V\2-Create-HyperV_VM\Latest\2-Create-HyperV_VM7-withlogging.ps1'
+Did not find log file at C:\code\CreateNewHyperV_VM\exports\Logs\LAB-HV01\2023-12-10-17-32-09
+Creating log file at C:\code\CreateNewHyperV_VM\exports\Logs\LAB-HV01\2023-12-10-17-32-09
+Created log file at C:\code\CreateNewHyperV_VM\exports\Logs\LAB-HV01\2023-12-10-17-32-09
+2023-12-10 17:32:09 LAB-HV01: [INFO] [2-Create-HyperV_VM7-withlogging.ps1] Logging works
+2023-12-10 17:32:09 LAB-HV01: [INFO] [2-Create-HyperV_VM7-withlogging.ps1] Starting main script execution
+2023-12-10 17:32:09 LAB-HV01: [INFO] [Initialize-HyperVServices] Starting Initialize-HyperVServices function
+2023-12-10 17:32:09 LAB-HV01: [INFO] [Initialize-HyperVServices] Hyper-V services started
+2023-12-10 17:32:09 LAB-HV01: [INFO] [Initialize-HyperVServices] Exiting Initialize-HyperVServices function
+2023-12-10 17:32:09 LAB-HV01: [INFO] [EnsureUntrustedGuardianExists] Checking for the existence of the guardian: UntrustedGuardian
+2023-12-10 17:32:09 LAB-HV01: [INFO] [EnsureUntrustedGuardianExists] Guardian UntrustedGuardian already exists
+2023-12-10 17:32:09 LAB-HV01: [INFO] [CreateVMFolder] Starting CreateVMFolder function
+2023-12-10 17:32:10 LAB-HV01: [INFO] [CreateVMFolder] VM folder created at C:\VM\ProxMox_v8_1_20231210_173209
+2023-12-10 17:32:10 LAB-HV01: [INFO] [CreateVMFolder] Exiting CreateVMFolder function
+2023-12-10 17:32:10 LAB-HV01: [INFO] [New-CustomVM] Starting New-CustomVM function
+2023-12-10 17:32:13 LAB-HV01: [INFO] [New-CustomVM] VM ProxMox_v8_1_20231210_173209 created
+2023-12-10 17:32:13 LAB-HV01: [INFO] [New-CustomVM] Exiting New-CustomVM function
+2023-12-10 17:32:13 LAB-HV01: [INFO] [Add-DVDDriveToVM] Starting Add-DVDDriveToVM function
+2023-12-10 17:32:13 LAB-HV01: [INFO] [Add-DVDDriveToVM] DVD drive added to ProxMox_v8_1_20231210_173209
+2023-12-10 17:32:13 LAB-HV01: [INFO] [Add-DVDDriveToVM] Exiting Add-DVDDriveToVM function
+2023-12-10 17:32:13 LAB-HV01: [INFO] [ConfigureVMBoot] Starting ConfigureVMBoot function
+2023-12-10 17:32:14 LAB-HV01: [INFO] [ConfigureVMBoot] VM Boot configured for ProxMox_v8_1_20231210_173209
+2023-12-10 17:32:14 LAB-HV01: [INFO] [ConfigureVMBoot] Exiting ConfigureVMBoot function
+2023-12-10 17:32:14 LAB-HV01: [INFO] [ConfigureVM] Starting ConfigureVM function
+2023-12-10 17:32:14 LAB-HV01: [INFO] [ConfigureVM] VM ProxMox_v8_1_20231210_173209 configured
+2023-12-10 17:32:14 LAB-HV01: [INFO] [ConfigureVM] Exiting ConfigureVM function
+2023-12-10 17:32:14 LAB-HV01: [INFO] [EnableVMTPM] Starting Enable-VMTPM function
+2023-12-10 17:32:15 LAB-HV01: [INFO] [EnableVMTPM] TPM enabled for ProxMox_v8_1_20231210_173209
+2023-12-10 17:32:15 LAB-HV01: [INFO] [EnableVMTPM] Exiting Enable-VMTPM function
+2023-12-10 17:32:15 LAB-HV01: [INFO] [2-Create-HyperV_VM7-withlogging.ps1] Completed main script execution
+Transcript stopped, output file is C:\code\CreateNewHyperV_VM\exports\Logs\LAB-HV01\2023-12-10-17-32-09\CreateNewHyperV_VM-Transcript.log
+
+2023-12-10 17:32:15 LAB-HV01: [INFO] [Export-EventLog] Event log '173209_CreateNewHyperV_VM' exported to 'C:\code\CreateNewHyperV_VM\exports\Logs\LAB-HV01\2023-12-10-17-32-09\173209_CreateNewHyperV_VM-Transcript.evtx'
+]633;E;. 'D:\x5cCode\x5cGitHub\x5cCB\x5cCB\x5cHyper-V\x5c2-Create-HyperV_VM\x5cLatest\x5c2-Create-HyperV_VM7-withlogging.ps1']633;D;0]633;A]633;P;Cwd=D:\x5cCode\x5cGitHub\x5cCBPS D:\Code\GitHub\CB> ]633;B
