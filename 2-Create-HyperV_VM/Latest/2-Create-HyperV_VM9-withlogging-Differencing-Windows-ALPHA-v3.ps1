@@ -38,7 +38,7 @@ $moduleStarterParams = @{
 }
 
 # Call the function using the splat
-Invoke-ModuleStarter @moduleStarterParams
+# Invoke-ModuleStarter @moduleStarterParams
 
 #endregion FIRING UP MODULE STARTER
 
@@ -136,7 +136,7 @@ try {
 
 
     # Get the configuration
-    $config = Get-VMConfiguration -ConfigPath "D:\Code\CB\Hyper-V\2-Create-HyperV_VM\Latest"
+    $config = Get-VMConfiguration -ConfigPath "E:\code\HyperV\2-Create-HyperV_VM\Latest"
 
     # Verify configuration was loaded
     if (-not $config) {
@@ -189,15 +189,68 @@ try {
     $UsesDifferencing = $choice -eq '2'
     $VMCreated = $false
 
+    # Function to get available virtual switch
+    function Get-AvailableVirtualSwitch {
+        [CmdletBinding()]
+        param()
+        
+        try {
+            # Get all available virtual switches
+            $switches = Get-VMSwitch -ErrorAction Stop
+            
+            if (-not $switches) {
+                Write-EnhancedLog -Message "No virtual switches found. Creating default External switch..." -Level "WARNING"
+                
+                # Get the first available network adapter
+                $netAdapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 1
+                
+                if ($netAdapter) {
+                    # Create new external switch
+                    $newSwitch = New-VMSwitch -Name "Default External Switch" -NetAdapterName $netAdapter.Name -AllowManagementOS $true
+                    Write-EnhancedLog -Message "Created new external switch: $($newSwitch.Name)" -Level "INFO"
+                    return $newSwitch.Name
+                } else {
+                    throw "No network adapters available to create virtual switch"
+                }
+            }
+            
+            # If there's only one switch, use it
+            if ($switches.Count -eq 1) {
+                Write-EnhancedLog -Message "Using the only available switch: $($switches[0].Name)" -Level "INFO"
+                return $switches[0].Name
+            }
+            
+            # If multiple switches exist, show selection menu
+            Write-Host "`nAvailable Virtual Switches:" -ForegroundColor Cyan
+            for ($i = 0; $i -lt $switches.Count; $i++) {
+                Write-Host "[$i] $($switches[$i].Name) (Type: $($switches[$i].SwitchType))"
+            }
+            
+            do {
+                $selection = Read-Host "`nSelect virtual switch [0-$($switches.Count - 1)]"
+            } while ($selection -notmatch '^\d+$' -or [int]$selection -lt 0 -or [int]$selection -ge $switches.Count)
+            
+            return $switches[[int]$selection].Name
+        }
+        catch {
+            Write-EnhancedLog -Message "Error getting virtual switch: $_" -Level "ERROR"
+            throw
+        }
+    }
+
+    # Get virtual switch dynamically instead of from config
+    $virtualSwitchName = Get-AvailableVirtualSwitch
+    Write-EnhancedLog -Message "Using virtual switch: $virtualSwitchName" -Level "INFO"
+
     # Define common VM parameters from configuration
     $vmParams = @{
         VMName             = $VMName
         VMFullPath         = $VMFullPath
         VHDPath            = $vmDestinationPath
-        SwitchName         = $config.SwitchName
-        MemoryStartupBytes = $config.MemoryStartupBytes
-        MemoryMinimumBytes = $config.MemoryMinimumBytes
-        MemoryMaximumBytes = $config.MemoryMaximumBytes
+        SwitchName         = $virtualSwitchName  # Use dynamically selected switch
+        MemoryStartupBytes = [int64](Invoke-Expression $config.MemoryStartupBytes.Replace('GB', '*1GB'))
+        MemoryMinimumBytes = [int64](Invoke-Expression $config.MemoryMinimumBytes.Replace('GB', '*1GB'))
+        MemoryMaximumBytes = [int64](Invoke-Expression $config.MemoryMaximumBytes.Replace('GB', '*1GB'))
         Generation         = $config.Generation
         UseDifferencing    = $UsesDifferencing
     }

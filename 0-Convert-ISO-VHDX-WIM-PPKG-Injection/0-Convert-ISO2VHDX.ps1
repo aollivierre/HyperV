@@ -4000,9 +4000,9 @@ $params = @{
     # ScriptPath          = "D:\Code\GitHub\CB\CB\Hyper-V\0-Convert-ISO-VHDX-WIM-PPKG-Injection\0-Convert-WindowsImage-new.ps1"
     # SourcePath          = "D:\VM\Setup\ISO\Win11_23H2_English_x64v2_May_19_2024.iso"
     # SourcePath          = "D:\VM\Setup\ISO\Windows_SERVER_2025_EVAL_x64FRE_en-us-July-25-2025.iso"
-    SourcePath          = "D:\VM\Setup\ISO\Win11_24H2_English_x64_Oct16_2024.iso"
+    SourcePath          = "E:\iso\SERVER_2022_Feb_01_EVAL_x64FRE_en-us.iso"
     # VHDPath             = "D:\VM\Setup\VHDX\Win11_23H2_English_x64_July_04_2024-100GB-unattend-PFW-OOBE-tasks.VHDX"
-    VHDPath             = "D:\VM\Setup\VHDX\Win11_24H2_English_x64_Oct16_2024-100GB.VHDX"
+    VHDPath             = "E:\VM\Setup\VHDX\SERVER_2022_Feb_01_EVAL_x64FRE_en-us-100GB.VHDX"
     DiskLayout          = "UEFI"
     # VHDPartitionStyle   = "GPT"
     RemoteDesktopEnable = $false
@@ -4011,8 +4011,9 @@ $params = @{
     IsFixed             = $false
     SizeBytes           = 100GB
     # Edition             = "LIST" #if you want to list all of the Editions in an ISO file
-    Edition             = "Windows 11 Pro for Workstations"
+    # Edition             = "Windows 11 Pro for Workstations"
     # Edition             = "Windows Server 2025 Datacenter Evaluation (Desktop Experience)"
+    Edition             = "Windows Server 2022 Standard Evaluation (Desktop Experience)"
     # UnattendPath        = "D:\Code\CB\Hyper-V\0-Convert-ISO-VHDX-WIM-PPKG-Injection\3.2-Inject-Unattend-VHDX\Unattend\unattend.xml"
 }
 
