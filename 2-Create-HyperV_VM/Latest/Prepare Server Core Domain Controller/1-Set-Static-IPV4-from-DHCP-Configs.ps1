@@ -24,10 +24,20 @@ $ipAddress = $currentIP.IPv4Address.IPAddress
 $prefixLength = $currentIP.IPv4Address.PrefixLength
 $gateway = $currentIP.IPv4DefaultGateway.NextHop
 $dnsServers = ($currentIP.DNSServer | Where-Object {$_.AddressFamily -eq 2}).ServerAddresses
+$hostname = [System.Net.Dns]::GetHostName()
+$fqdn = ([System.Net.Dns]::GetHostEntry($hostname)).HostName
+
+# Check if the adapter is already configured with static IP
+$isStatic = Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 | Select-Object -ExpandProperty Dhcp
+$staticWarning = if ($isStatic -eq "Disabled") {
+    "`nWARNING: This adapter is already configured with static IP settings!" 
+} else { "" }
 
 # Display current settings
 Write-Host "`nCurrent Network Configuration:" -ForegroundColor Green
 Write-Host "--------------------------------"
+Write-Host "Computer Name: $hostname"
+Write-Host "FQDN: $fqdn"
 Write-Host "Adapter Name: $($adapter.Name)"
 Write-Host "Adapter Description: $($adapter.InterfaceDescription)"
 Write-Host "Adapter Type: $(if ($adapter.Virtual) { 'Virtual' } else { 'Physical' })"
@@ -35,8 +45,12 @@ Write-Host "IP Address: $ipAddress"
 Write-Host "Subnet Mask Length: $prefixLength"
 Write-Host "Default Gateway: $gateway"
 Write-Host "DNS Servers: $($dnsServers -join ', ')"
+Write-Host "IP Configuration: $(if ($isStatic -eq 'Disabled') { 'Static' } else { 'DHCP' })"
 Write-Host "`nThese settings will be configured as static values."
 Write-Host "--------------------------------"
+if ($staticWarning) {
+    Write-Host $staticWarning -ForegroundColor Yellow
+}
 
 # Prompt for confirmation
 $confirm = Read-Host "`nDo you want to proceed with setting these as static values? (yes/no)"
@@ -60,11 +74,14 @@ try {
     
     Write-Host "`nNew Static Configuration Applied Successfully:" -ForegroundColor Green
     Write-Host "--------------------------------"
+    Write-Host "Computer Name: $hostname"
+    Write-Host "FQDN: $fqdn"
     Write-Host "Adapter Name: $($adapter.Name)"
     Write-Host "IP Address: $($newConfig.IPv4Address.IPAddress)"
     Write-Host "Subnet Mask Length: $($newConfig.IPv4Address.PrefixLength)"
     Write-Host "Default Gateway: $($newConfig.IPv4DefaultGateway.NextHop)"
     Write-Host "DNS Servers: $((Get-DnsClientServerAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4).ServerAddresses -join ', ')"
+    Write-Host "IP Configuration: Static"
     Write-Host "--------------------------------"
 }
 catch {
