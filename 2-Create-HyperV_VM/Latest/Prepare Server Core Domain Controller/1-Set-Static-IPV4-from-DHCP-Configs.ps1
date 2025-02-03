@@ -1,8 +1,20 @@
+#Example of how to run this script from a URL
+$scriptUrl = 'https://raw.githubusercontent.com/aollivierre/HyperV/refs/heads/main/2-Create-HyperV_VM/Latest/Prepare%20Server%20Core%20Domain%20Controller/1-Set-Static-IPV4-from-DHCP-Configs.ps1'; $outputPath = "$env:TEMP\Set-Static-IPV4.ps1"; Invoke-WebRequest -Uri $scriptUrl -OutFile $outputPath; Write-Host "Script downloaded to: $outputPath"; Get-Content $outputPath | Write-Host; Read-Host "Press Enter to execute the script"; Set-ExecutionPolicy Bypass -Scope Process -Force; & $outputPath
+
+#Refer to https://github.com/aollivierre/docs/blob/b2f13176a535600eab71467b885f5a643510a56e/PowerShell/PowerShell%20Script%20Execution%20from%20URLs%20Guide.md for more information
+
 # Get the active network adapter that has an IP address
-$adapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" -and (Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4).IPAddress -ne $null } | Select-Object -First 1
+$adapter = Get-NetAdapter | Where-Object { 
+    $_.Status -eq "Up" -and                                    # Adapter is up
+    -not $_.Virtual -and                                       # Not a virtual adapter
+    -not $_.Name.StartsWith("vEthernet") -and                 # Not a Hyper-V virtual adapter
+    (Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4).IPAddress -ne $null 
+} | Select-Object -First 1
 
 if (-not $adapter) {
-    Write-Error "No active network adapter found with an IP address."
+    Write-Host "No suitable physical network adapter found with an IP address." -ForegroundColor Red
+    Write-Host "Available network adapters:" -ForegroundColor Yellow
+    Get-NetAdapter | Format-Table Name, InterfaceDescription, Status, LinkSpeed, Virtual
     exit 1
 }
 
@@ -17,6 +29,8 @@ $dnsServers = ($currentIP.DNSServer | Where-Object {$_.AddressFamily -eq 2}).Ser
 Write-Host "`nCurrent Network Configuration:" -ForegroundColor Green
 Write-Host "--------------------------------"
 Write-Host "Adapter Name: $($adapter.Name)"
+Write-Host "Adapter Description: $($adapter.InterfaceDescription)"
+Write-Host "Adapter Type: $(if ($adapter.Virtual) { 'Virtual' } else { 'Physical' })"
 Write-Host "IP Address: $ipAddress"
 Write-Host "Subnet Mask Length: $prefixLength"
 Write-Host "Default Gateway: $gateway"
