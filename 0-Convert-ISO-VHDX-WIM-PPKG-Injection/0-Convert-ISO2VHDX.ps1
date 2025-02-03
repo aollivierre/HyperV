@@ -1697,9 +1697,7 @@ You can use the fields below to configure the VHD or VHDX that you want to creat
                 if (Test-IsNetworkLocation $SourcePath) {
                     Write-LogMessage "Copying ISO $(Split-Path $SourcePath -Leaf) to temp folder..." -logType Verbose
                     robocopy $(Split-Path $SourcePath -Parent) $TempDirectory $(Split-Path $SourcePath -Leaf) | Out-Null
-                    $SourcePath = "$($TempDirectory)\$(Split-Path $SourcePath -Leaf)"
-
-                    $tempSource = $SourcePath
+                    $openFileDialog1.FileName = "$($TempDirectory)\$(Split-Path $SourcePath -Leaf)"
                 }
 
                 $isoPath = (Resolve-Path $SourcePath).Path
@@ -3996,25 +3994,276 @@ function Add-WindowsImageTypes {
 
 #You need to run the following in PS5.1 instead of PS7 because other wise it will throw some errors unless you re-factor this
 
-$params = @{
-    # ScriptPath          = "D:\Code\GitHub\CB\CB\Hyper-V\0-Convert-ISO-VHDX-WIM-PPKG-Injection\0-Convert-WindowsImage-new.ps1"
-    # SourcePath          = "D:\VM\Setup\ISO\Win11_23H2_English_x64v2_May_19_2024.iso"
-    # SourcePath          = "D:\VM\Setup\ISO\Windows_SERVER_2025_EVAL_x64FRE_en-us-July-25-2025.iso"
-    SourcePath          = "E:\iso\SERVER_2022_Feb_01_EVAL_x64FRE_en-us.iso"
-    # VHDPath             = "D:\VM\Setup\VHDX\Win11_23H2_English_x64_July_04_2024-100GB-unattend-PFW-OOBE-tasks.VHDX"
-    VHDPath             = "E:\VM\Setup\VHDX\SERVER_2022_Feb_01_EVAL_x64FRE_en-us-100GB.VHDX"
-    DiskLayout          = "UEFI"
-    # VHDPartitionStyle   = "GPT"
-    RemoteDesktopEnable = $false
-    VHDFormat           = "VHDX"
-    # VHDType             = "Dynamic"
-    IsFixed             = $false
-    SizeBytes           = 100GB
-    # Edition             = "LIST" #if you want to list all of the Editions in an ISO file
-    # Edition             = "Windows 11 Pro for Workstations"
-    # Edition             = "Windows Server 2025 Datacenter Evaluation (Desktop Experience)"
-    Edition             = "Windows Server 2022 Standard Evaluation (Desktop Experience)"
-    # UnattendPath        = "D:\Code\CB\Hyper-V\0-Convert-ISO-VHDX-WIM-PPKG-Injection\3.2-Inject-Unattend-VHDX\Unattend\unattend.xml"
+# $params = @{
+#     # ScriptPath          = "D:\Code\GitHub\CB\CB\Hyper-V\0-Convert-ISO-VHDX-WIM-PPKG-Injection\0-Convert-WindowsImage-new.ps1"
+#     # SourcePath          = "D:\VM\Setup\ISO\Win11_23H2_English_x64v2_May_19_2024.iso"
+#     # SourcePath          = "D:\VM\Setup\ISO\Windows_SERVER_2025_EVAL_x64FRE_en-us-July-25-2025.iso"
+#     SourcePath          = "E:\iso\SERVER_2022_Feb_01_EVAL_x64FRE_en-us.iso"
+#     # VHDPath             = "D:\VM\Setup\VHDX\Win11_23H2_English_x64_July_04_2024-100GB-unattend-PFW-OOBE-tasks.VHDX"
+#     VHDPath             = "E:\VM\Setup\VHDX\SERVER_Core-2022_Feb_01_EVAL_x64FRE_en-us-100GB.VHDX"
+#     DiskLayout          = "UEFI"
+#     # VHDPartitionStyle   = "GPT"
+#     RemoteDesktopEnable = $false
+#     VHDFormat           = "VHDX"
+#     # VHDType             = "Dynamic"
+#     IsFixed             = $false
+#     SizeBytes           = 100GB
+#     # Edition             = "LIST" #if you want to list all of the Editions in an ISO file
+#     # Edition             = "Windows 11 Pro for Workstations"
+#     # Edition             = "Windows Server 2025 Datacenter Evaluation (Desktop Experience)"
+#     # Edition             = "Windows Server 2022 Standard Evaluation (Desktop Experience)"
+#     Edition             = 1  # Core edition (Windows Server 2022 Standard Evaluation)
+#     # UnattendPath        = "D:\Code\CB\Hyper-V\0-Convert-ISO-VHDX-WIM-PPKG-Injection\3.2-Inject-Unattend-VHDX\Unattend\unattend.xml"
+# }
+
+# Convert-WindowsImage @params
+
+function Get-WindowsEditionChoice {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$ISOPath
+    )
+
+    try {
+        # Mount the ISO if it exists
+        $mountResult = Mount-DiskImage -ImagePath $ISOPath -PassThru
+        $driveLetter = ($mountResult | Get-Volume).DriveLetter
+
+        # Get the path to install.wim or install.esd
+        $wimPath = "$($driveLetter):\sources\install.wim"
+        $esdPath = "$($driveLetter):\sources\install.esd"
+        $installPath = if (Test-Path $wimPath) { $wimPath } else { $esdPath }
+
+        # Get Windows image information
+        $editions = Get-WindowsImage -ImagePath $installPath | Select-Object ImageIndex, ImageName
+
+        # Display menu
+        Write-Host "`nAvailable Windows Editions in ISO:" -ForegroundColor Cyan
+        Write-Host "=================================" -ForegroundColor Cyan
+        
+        foreach ($edition in $editions) {
+            Write-Host ("[{0}] {1}" -f $edition.ImageIndex, $edition.ImageName)
+        }
+        
+        Write-Host "`nPlease select an edition by entering its number or full name:" -ForegroundColor Yellow
+        $choice = Read-Host
+
+        # Check if input is a number
+        if ($choice -match '^\d+$') {
+            $selectedEdition = $editions | Where-Object { $_.ImageIndex -eq [int]$choice }
+        } else {
+            $selectedEdition = $editions | Where-Object { $_.ImageName -eq $choice }
+        }
+
+        if ($null -eq $selectedEdition) {
+            throw "Invalid selection. Please run the script again and select a valid edition."
+        }
+
+        return @{
+            Index = $selectedEdition.ImageIndex
+            Name = $selectedEdition.ImageName
+        }
+    }
+    catch {
+        throw $_
+    }
+    finally {
+        # Always dismount the ISO
+        if ($mountResult) {
+            Dismount-DiskImage -ImagePath $ISOPath | Out-Null
+        }
+    }
 }
 
+function Get-DynamicVHDPath {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$ISOPath,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$EditionName,
+        
+        [Parameter(Mandatory = $true)]
+        [int64]$SizeBytes,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$VHDFormat,
+        
+        [Parameter(Mandatory = $true)]
+        [bool]$IsFixed,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$DiskLayout,
+
+        [Parameter(Mandatory = $false)]
+        [string]$OutputDirectory = "E:\VM\Setup\VHDX"
+    )
+
+    # Get ISO file name without extension
+    $isoName = [System.IO.Path]::GetFileNameWithoutExtension($ISOPath)
+    
+    # Clean up edition name for filename
+    $editionShort = $EditionName -replace 'Windows Server \d{4}|Windows \d{1,2}|Evaluation|\(|\)|\s+', '' -replace '\s+', '-'
+    
+    # Format size (convert to GB for filename)
+    $sizeGB = $SizeBytes / 1GB
+    $sizeString = "{0}GB" -f $sizeGB
+    
+    # Get disk type
+    $diskType = if ($IsFixed) { "Fixed" } else { "Dynamic" }
+    
+    # Create timestamp
+    $timestamp = Get-Date -Format "yyyy-MM-dd"
+    
+    # Construct filename
+    $fileName = @(
+        $isoName,
+        $editionShort,
+        $sizeString,
+        $diskType,
+        $DiskLayout,
+        $timestamp
+    ) -join '_'
+
+    # Add extension based on VHDFormat
+    $fileName = "$fileName.$($VHDFormat.ToLower())"
+    
+    # Ensure output directory exists
+    if (-not (Test-Path $OutputDirectory)) {
+        New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+    }
+    
+    # Return full path
+    return Join-Path $OutputDirectory $fileName
+}
+
+# Define the ISO path
+$isoPath = "E:\iso\SERVER_2022_Feb_01_EVAL_x64FRE_en-us.iso"
+
+# Get the Windows edition choice from user
+try {
+    $selectedEdition = Get-WindowsEditionChoice -ISOPath $isoPath
+} catch {
+    Write-Error $_.Exception.Message
+    exit 1
+}
+
+# Define common parameters
+$vhdFormat = "VHDX"
+$isFixed = $false
+$sizeBytes = 100GB
+$diskLayout = "UEFI"
+
+# Get dynamic VHD path using splatting
+$dynamicVHDParams = @{
+    ISOPath         = $isoPath
+    EditionName     = $selectedEdition.Name
+    SizeBytes       = $sizeBytes
+    VHDFormat       = $vhdFormat
+    IsFixed         = $isFixed
+    DiskLayout      = $diskLayout
+}
+
+$vhdPath = Get-DynamicVHDPath @dynamicVHDParams
+
+# Define and execute the conversion parameters
+$params = @{
+    SourcePath          = $isoPath
+    VHDPath             = $vhdPath
+    DiskLayout          = $diskLayout
+    RemoteDesktopEnable = $false
+    VHDFormat           = $vhdFormat
+    IsFixed             = $isFixed
+    SizeBytes           = $sizeBytes
+    Edition             = $selectedEdition.Index
+}
+
+function Show-PostCreationGuidance {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VHDPath
+    )
+    
+    Write-Host "`n=== VHDX Creation Complete ===" -ForegroundColor Green
+    Write-Host "Your VHDX has been created at: $VHDPath" -ForegroundColor Green
+    
+    Write-Host "`nRecommended Next Steps:" -ForegroundColor Cyan
+    Write-Host "This VHDX can be used in two ways:" -ForegroundColor Cyan
+    
+    # Direct Usage Section
+    Write-Host "`n1. Direct Usage (Traditional Approach):" -ForegroundColor Yellow
+    Write-Host "   You can use this VHDX directly to create a new VM."
+    Write-Host "   Steps for direct usage:"
+    Write-Host "   1. Copy the VHDX to your desired location (optional)"
+    Write-Host "   2. In Hyper-V Manager, create a new VM"
+    Write-Host "   3. Choose 'Use an existing virtual hard disk'"
+    Write-Host "   4. Browse to and select this VHDX"
+    Write-Host "   5. Complete the VM creation wizard"
+    Write-Host "   Pros:"
+    Write-Host "   [+] Simpler setup process"
+    Write-Host "   [+] Each VM is completely independent"
+    Write-Host "   [+] No parent disk dependencies"
+    Write-Host "   [+] Can freely modify the VHDX"
+    Write-Host "   [+] Recommended for production workloads"
+    Write-Host "   Cons:"
+    Write-Host "   [-] Takes more disk space"
+    Write-Host "   [-] Longer VM creation time"
+    Write-Host "   [-] Updates and patches need to be applied to each VM separately"
+    
+    # Differencing Disk Section
+    Write-Host "`n2. Parent Disk for Differencing VHDXs (Recommended for dev/test environments):" -ForegroundColor Yellow
+    Write-Host "   Use this VHDX as a parent disk to create multiple child VMs."
+    Write-Host "   Steps for differencing disk setup:"
+    Write-Host "   1. Make the VHDX read-only (important!)"
+    Write-Host "   2. In Hyper-V Manager, create a new VM"
+    Write-Host "   3. Choose 'Create a virtual hard disk'"
+    Write-Host "   4. Select 'Differencing' as the disk type"
+    Write-Host "   5. Select this VHDX as the parent disk"
+    Write-Host "   6. Choose location for the child disk"
+    Write-Host "   Pros:"
+    Write-Host "   [+] Significantly reduced disk space usage"
+    Write-Host "   [+] Much faster VM creation"
+    Write-Host "   [+] Perfect for dev/test environments"
+    Write-Host "   [+] Can create multiple VMs from a single parent"
+    Write-Host "   [+] Ideal for temporary or disposable VMs"
+    Write-Host "   Cons:"
+    Write-Host "   [-] Parent disk must remain available"
+    Write-Host "   [-] More complex setup process"
+    Write-Host "   [-] Not recommended for production workloads due to:"
+    Write-Host "       - Performance impact from disk chain"
+    Write-Host "       - Risk of parent disk corruption affecting all children"
+    Write-Host "       - Backup complexity"
+    Write-Host "       - Storage migration challenges"
+
+    Write-Host "`nPatching Strategy:" -ForegroundColor Magenta
+    Write-Host "1. For Direct Usage VMs:"
+    Write-Host "   * Patch each VM independently"
+    Write-Host "   * Use standard Windows Update or WSUS"
+    Write-Host "   * Create checkpoints before patching if needed"
+    
+    Write-Host "`n2. For Differencing Disk VMs:"
+    Write-Host "   * DO NOT patch the parent VHDX once child VMs are created"
+    Write-Host "   * Instead, patch each child VM independently"
+    Write-Host "   * If you need a new base image with patches:"
+    Write-Host "     1. Create a new parent VHDX with latest updates"
+    Write-Host "     2. Create new child VMs from the new parent"
+    Write-Host "     3. Keep the old parent for existing child VMs"
+
+    Write-Host "`nBest Practices:" -ForegroundColor Magenta
+    Write-Host "* For production workloads: Use direct VHDXs"
+    Write-Host "* For dev/test environments: Differencing disks are ideal"
+    Write-Host "* Keep parent VHDXs in a dedicated folder"
+    Write-Host "* Version your parent VHDXs (e.g., append patch level or date)"
+    Write-Host "* Document which child VMs are using which parent VHDX"
+    Write-Host "* Consider creating checkpoints of child VMs before updates"
+    Write-Host "* Regularly check disk chain health for differencing disks"
+
+    Write-Host "`nPowerShell Commands for Making VHDX Read-Only:" -ForegroundColor Cyan
+    Write-Host "Set-ItemProperty -Path '$VHDPath' -Name IsReadOnly -Value `$true"
+}
+
+Write-Host "`nCreating virtual disk at: $vhdPath" -ForegroundColor Green
 Convert-WindowsImage @params
+
+# Show guidance after successful creation
+Show-PostCreationGuidance -VHDPath $vhdPath
