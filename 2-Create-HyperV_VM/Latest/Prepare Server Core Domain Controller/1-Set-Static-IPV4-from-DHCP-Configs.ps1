@@ -1,5 +1,5 @@
 #Example of how to run this script from a URL
-$scriptUrl = 'https://raw.githubusercontent.com/aollivierre/HyperV/refs/heads/main/2-Create-HyperV_VM/Latest/Prepare%20Server%20Core%20Domain%20Controller/1-Set-Static-IPV4-from-DHCP-Configs.ps1'; $outputPath = "$env:TEMP\Set-Static-IPV4.ps1"; Invoke-WebRequest -Uri $scriptUrl -OutFile $outputPath; Write-Host "Script downloaded to: $outputPath"; Get-Content $outputPath | Write-Host; Read-Host "Press Enter to execute the script"; Set-ExecutionPolicy Bypass -Scope Process -Force; & $outputPath
+# $scriptUrl = 'https://raw.githubusercontent.com/aollivierre/HyperV/refs/heads/main/2-Create-HyperV_VM/Latest/Prepare%20Server%20Core%20Domain%20Controller/1-Set-Static-IPV4-from-DHCP-Configs.ps1'; $outputPath = "$env:TEMP\Set-Static-IPV4.ps1"; Invoke-WebRequest -Uri $scriptUrl -OutFile $outputPath; Write-Host "Script downloaded to: $outputPath"; Get-Content $outputPath | Write-Host; Read-Host "Press Enter to execute the script"; Set-ExecutionPolicy Bypass -Scope Process -Force; & $outputPath
 
 #Refer to https://github.com/aollivierre/docs/blob/b2f13176a535600eab71467b885f5a643510a56e/PowerShell/PowerShell%20Script%20Execution%20from%20URLs%20Guide.md for more information
 
