@@ -18,8 +18,8 @@ if (-not ($DC2IP -as [IPAddress])) {
 
 
 # Parameters
-$NewDCName = "DC2"
-$DomainName = "ABC.local"
+$NewDCName = "DC02"
+$DomainName = "cci.local"
 # $TargetServer = "192.168.100.150"
 $TargetServer = $DC2IP
 $CredentialFile = Join-Path $PSScriptRoot "servercore.secrets"
@@ -65,7 +65,7 @@ function Get-NetworkConfigStatus {
     )
     
     $networkStatus = Invoke-Command -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
-        $adapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" -and (Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4).IPAddress -ne $null } | Select-Object -First 1
+        $adapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" -and $null -ne (Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4).IPAddress } | Select-Object -First 1
         
         if (-not $adapter) {
             throw "No active network adapter found with an IP address."
