@@ -38,7 +38,7 @@ $moduleStarterParams = @{
 }
 
 # Call the function using the splat
-# Invoke-ModuleStarter @moduleStarterParams
+Invoke-ModuleStarter @moduleStarterParams
 
 #endregion FIRING UP MODULE STARTER
 
@@ -136,7 +136,8 @@ try {
 
 
     # Get the configuration
-    $config = Get-VMConfiguration -ConfigPath "E:\code\HyperV\2-Create-HyperV_VM\Latest"
+    $configPath = Join-Path -Path $PSScriptRoot -ChildPath "."
+    $config = Get-VMConfiguration -ConfigPath $configPath
 
     # Verify configuration was loaded
     if (-not $config) {

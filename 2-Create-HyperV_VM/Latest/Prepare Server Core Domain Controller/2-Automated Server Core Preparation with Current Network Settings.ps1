@@ -1,28 +1,125 @@
+<#
+.SYNOPSIS
+Automates the preparation of a Windows Server Core machine for domain joining, whether as a Domain Controller or for other server roles.
+
+.DESCRIPTION
+This script performs comprehensive network diagnostics and configuration to prepare a Server Core
+installation for domain integration. It can be used for:
+- Preparing a new Domain Controller
+- Setting up member servers for specific roles
+- General domain joining of Server Core installations
+
+The script includes:
+- Network connectivity verification
+- WinRM configuration and testing
+- Remote management setup
+- Detailed troubleshooting guidance
+- Flexible credential handling for both workgroup and domain scenarios
+
+.REQUIREMENTS
+1. Management Machine:
+   - Windows PowerShell (recommended) or PowerShell 7+
+   - RSAT Tools installed
+   - Network connectivity to both DC1 and target server
+
+2. Target Server:
+   - Windows Server Core installation
+   - Basic network configuration
+   - ICMP and WinRM ports accessible
+
+3. Credentials:
+   - Local administrator credentials if management machine is in workgroup
+   - Domain administrator credentials if management machine is domain-joined
+
+.NOTES
+Author: Anthony Ollivierre
+Created: 2024-02-14
+Last Modified: 2024-02-14
+
+.EXAMPLE
+# For Domain Controller Preparation:
+.\2-Automated Server Core Preparation with Current Network Settings.ps1
+# Follow prompts to configure as Domain Controller
+
+.EXAMPLE
+# For Member Server Preparation:
+.\2-Automated Server Core Preparation with Current Network Settings.ps1
+# Follow prompts to configure as domain member
+
+Both scenarios will prompt for:
+1. DC1 (Primary DNS) IP address
+2. Target server IP address
+3. New server name
+4. Domain name
+5. Administrator credentials
+#>
+
 # Run these commands once remote management is enabled on Server Core
-# Requires running from a management server with RSAT tools installed
+# Verify RSAT Tools installation
+function Test-RSATTools {
+    # First, determine if we're running on Windows Server or Windows Client
+    $osInfo = Get-CimInstance -ClassName Win32_OperatingSystem
+    $isWindowsServer = $osInfo.ProductType -eq 3  # 3 means Server, 1 means Workstation
 
-
-
-# Add parameter prompts at the beginning
-$DC1IP = Read-Host "Enter DC1 (Primary DNS) IP address"
-if (-not ($DC1IP -as [IPAddress])) {
-    Write-Error "Invalid IP address format for DC1"
-    exit 1
+    if ($isWindowsServer) {
+        # Check RSAT features using Get-WindowsFeature (Server method)
+        $requiredFeatures = @(
+            "RSAT-AD-Tools",
+            "RSAT-DHCP",
+            "RSAT-DNS-Server",
+            "RSAT-Role-Tools"
+        )
+        
+        $missingFeatures = @()
+        foreach ($feature in $requiredFeatures) {
+            if (-not (Get-WindowsFeature -Name $feature).Installed) {
+                $missingFeatures += $feature
+            }
+        }
+    } else {
+        # Check RSAT features using Get-WindowsCapability (Windows 10/11 method)
+        $requiredFeatures = @(
+            "Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0",
+            "Rsat.DHCP.Tools~~~~0.0.1.0",
+            "Rsat.DNS.Tools~~~~0.0.1.0",
+            "Rsat.ServerManager.Tools~~~~0.0.1.0"
+        )
+        
+        $missingFeatures = @()
+        foreach ($feature in $requiredFeatures) {
+            $state = Get-WindowsCapability -Name $feature -Online | Select-Object -ExpandProperty State
+            if ($state -ne "Installed") {
+                $missingFeatures += $feature
+            }
+        }
+    }
+    
+    if ($missingFeatures.Count -gt 0) {
+        Write-Host "Missing RSAT features detected. The following features need to be installed:" -ForegroundColor Yellow
+        $missingFeatures | ForEach-Object { Write-Host "- $_" }
+        
+        $install = Read-Host "Would you like to install the missing RSAT features now? (Y/N)"
+        if ($install -eq 'Y') {
+            foreach ($feature in $missingFeatures) {
+                Write-Host "Installing $feature..." -ForegroundColor Yellow
+                if ($isWindowsServer) {
+                    Install-WindowsFeature -Name $feature
+                } else {
+                    Add-WindowsCapability -Online -Name $feature
+                }
+            }
+            Write-Host "RSAT features installation completed." -ForegroundColor Green
+        } else {
+            Write-Error "Required RSAT features are not installed. Script cannot continue."
+            exit 1
+        }
+    } else {
+        Write-Host "All required RSAT features are installed." -ForegroundColor Green
+    }
 }
 
-$DC2IP = Read-Host "Enter desired DC2 (This server) IP address"
-if (-not ($DC2IP -as [IPAddress])) {
-    Write-Error "Invalid IP address format for DC2"
-    exit 1
-}
-
-
-# Parameters
-$NewDCName = "DC02"
-$DomainName = "cci.local"
-# $TargetServer = "192.168.100.150"
-$TargetServer = $DC2IP
-$CredentialFile = Join-Path $PSScriptRoot "servercore.secrets"
+# Verify RSAT installation before proceeding
+Test-RSATTools
 
 # Function to handle credential management
 function Get-StoredCredentials {
@@ -55,60 +152,267 @@ function Get-StoredCredentials {
     return $cred
 }
 
+# Function to create a PSSession with retry
+function New-RetryPSSession {
+    param(
+        [string]$ComputerName,
+        [PSCredential]$Credential,
+        [int]$MaxAttempts = 3,
+        [int]$RetryDelaySeconds = 5
+    )
+    
+    Write-Host "Establishing PowerShell session to $ComputerName..." -ForegroundColor Yellow
+    
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        try {
+            $session = New-PSSession -ComputerName $ComputerName -Credential $Credential -ErrorAction Stop
+            Write-Host "Successfully established PowerShell session." -ForegroundColor Green
+            return $session
+        }
+        catch {
+            if ($attempt -lt $MaxAttempts) {
+                Write-Host "Attempt $attempt failed. Retrying in $RetryDelaySeconds seconds..." -ForegroundColor Yellow
+                Start-Sleep -Seconds $RetryDelaySeconds
+            }
+            else {
+                Write-Error "Failed to establish PowerShell session after $MaxAttempts attempts: $_"
+                return $null
+            }
+        }
+    }
+}
 
+# Function to test server accessibility
+function Test-ServerAccess {
+    param (
+        [string]$ServerIP,
+        [PSCredential]$Credential
+    )
+    
+    Write-Host "Testing server accessibility..." -ForegroundColor Yellow
+    
+    # Test WinRM connectivity
+    Write-Host "Testing WinRM connectivity..." -ForegroundColor Yellow
+    try {
+        # Test basic connectivity first
+        $result = Test-WSMan -ComputerName $ServerIP -Authentication Negotiate -ErrorAction Stop
+        Write-Host "WinRM connectivity test successful" -ForegroundColor Green
+        
+        # Try to create a test session
+        $session = New-PSSession -ComputerName $ServerIP -Credential $Credential -Authentication Negotiate -ErrorAction Stop
+        
+        if ($session) {
+            Write-Host "Successfully created test session" -ForegroundColor Green
+            Remove-PSSession $session
+            return $true
+        }
+    }
+    catch {
+        Write-Error "Failed to connect to server: $_"
+        Write-Host "`nTroubleshooting steps:" -ForegroundColor Yellow
+        Write-Host "1. On the server (via console), run:" -ForegroundColor Cyan
+        Write-Host "   Enable-PSRemoting -Force"
+        Write-Host "   Set-NetConnectionProfile -NetworkCategory Private"
+        Write-Host "   Restart-Service WinRM"
+        Write-Host "`n2. Verify these settings:" -ForegroundColor Cyan
+        Write-Host "   Get-NetConnectionProfile"
+        Write-Host "   Get-Service WinRM"
+        Write-Host "   winrm get winrm/config/client"
+        Write-Host "`n3. Make sure Windows Firewall allows WinRM:" -ForegroundColor Cyan
+        Write-Host "   Enable-NetFirewallRule -DisplayGroup 'Windows Remote Management'"
+        return $false
+    }
+    
+    return $false
+}
 
 # Function to check network configuration status
 function Get-NetworkConfigStatus {
     param (
         [string]$ComputerName,
-        [System.Management.Automation.PSCredential]$Credential
+        [PSCredential]$Credential
     )
     
-    $networkStatus = Invoke-Command -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
-        $adapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" -and $null -ne (Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4).IPAddress } | Select-Object -First 1
-        
-        if (-not $adapter) {
-            throw "No active network adapter found with an IP address."
-        }
-
-        $ipConfig = Get-NetIPConfiguration -InterfaceIndex $adapter.ifIndex
-        $dhcpStatus = Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4
-        
-        @{
-            AdapterIndex  = $adapter.ifIndex
-            AdapterName   = $adapter.Name
-            IPAddress     = $ipConfig.IPv4Address.IPAddress
-            PrefixLength  = $ipConfig.IPv4Address.PrefixLength
-            Gateway       = $ipConfig.IPv4DefaultGateway.NextHop
-            DNSServers    = ($ipConfig.DNSServer | Where-Object { $_.AddressFamily -eq 2 }).ServerAddresses
-            IsDHCPEnabled = $dhcpStatus.Dhcp -eq 'Enabled'
-        }
-    }
-
-    return $networkStatus
-}
-
-
-
-
-
-# Configure WinRM on management server
-Write-Host "Configuring WinRM settings..." -ForegroundColor Yellow
-try {
-    Write-Host "Setting up WinRM TrustedHosts..." -ForegroundColor Yellow
-    Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
+    Write-Host "Retrieving network configuration..." -ForegroundColor Yellow
     
-    # Optional: Restart WinRM service
-    Restart-Service WinRM -Force
-    Start-Sleep -Seconds 2
+    try {
+        $session = New-RetryPSSession -ComputerName $ComputerName -Credential $Credential
+        if (-not $session) {
+            throw "Failed to establish session for network configuration check"
+        }
+        
+        $networkStatus = Invoke-Command -Session $session -ScriptBlock {
+            $adapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1
+            $ipConfig = Get-NetIPConfiguration -InterfaceIndex $adapter.ifIndex
+            $dhcpStatus = Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4
+            
+            return @{
+                AdapterName = $adapter.Name
+                AdapterIndex = $adapter.ifIndex
+                IPAddress = $ipConfig.IPv4Address.IPAddress
+                PrefixLength = $ipConfig.IPv4Address.PrefixLength
+                Gateway = $ipConfig.IPv4DefaultGateway.NextHop
+                DNSServers = $ipConfig.DNSServer.ServerAddresses
+                IsDHCPEnabled = $dhcpStatus.Dhcp -eq 'Enabled'
+            }
+        } -ErrorAction Stop
+        
+        Remove-PSSession $session
+        return $networkStatus
+    }
+    catch {
+        Write-Error "Failed to retrieve network configuration: $_"
+        throw
+    }
 }
-catch {
-    Write-Error "Failed to configure WinRM: $_"
+
+# Function to provide recovery guidance
+function Show-RecoverySteps {
+    Write-Host "`nServer Recovery Steps:" -ForegroundColor Cyan
+    Write-Host "1. From Hyper-V Manager:" -ForegroundColor Yellow
+    Write-Host "   a. Turn off the VM (State -> Turn Off)"
+    Write-Host "   b. Start the VM again"
+    Write-Host "   c. Wait for the VM to boot to the login screen"
+    Write-Host "`n2. Once the VM is running:" -ForegroundColor Yellow
+    Write-Host "   a. Log in using local administrator credentials"
+    Write-Host "   b. Run 'sconfig' and select option 1"
+    Write-Host "   c. Join a workgroup first (enter 'WORKGROUP')"
+    Write-Host "   d. Set the desired computer name"
+    Write-Host "   e. Let it restart"
+    Write-Host "`n3. After restart:" -ForegroundColor Yellow
+    Write-Host "   a. Verify network settings (option 8 in sconfig)"
+    Write-Host "   b. Ensure WinRM is enabled (option 4 in sconfig)"
+    Write-Host "   c. Run this script again"
+    Write-Host "`nWould you like to proceed with these recovery steps? (yes/no): " -NoNewline
+}
+
+# Add parameter prompts at the beginning
+$DC1IP = Read-Host "Enter DC1 (Primary DNS) IP address"
+if (-not ($DC1IP -as [IPAddress])) {
+    Write-Error "Invalid IP address format for DC1"
     exit 1
 }
 
-# Get credentials
-$LocalAdminCred = Get-StoredCredentials -CredentialFile $CredentialFile
+$DC2IP = Read-Host "Enter desired DC2 (This server) IP address"
+if (-not ($DC2IP -as [IPAddress])) {
+    Write-Error "Invalid IP address format for DC2"
+    exit 1
+}
+
+# Parameters
+$NewDCName = Read-Host "Enter the name for the new Domain Controller (e.g., DC02)"
+if ([string]::IsNullOrWhiteSpace($NewDCName)) {
+    Write-Error "Domain Controller name cannot be empty"
+    exit 1
+}
+
+$DomainName = Read-Host "Enter the domain name (e.g., contoso.local)"
+if ([string]::IsNullOrWhiteSpace($DomainName) -or $DomainName -notmatch '^\w+\.\w+$') {
+    Write-Error "Invalid domain name format. Please use format like 'contoso.local'"
+    exit 1
+}
+
+$TargetServer = $DC2IP
+$CredentialFile = Join-Path $PSScriptRoot "servercore.secrets"
+
+# Remove existing credential file if it exists to force new credentials
+if (Test-Path $CredentialFile) {
+    Write-Host "Removing existing stored credentials to get fresh ones..." -ForegroundColor Yellow
+    Remove-Item -Path $CredentialFile -Force
+}
+
+Write-Host "`nPlease enter the local administrator credentials for the Server Core machine." -ForegroundColor Yellow
+Write-Host "Use the format: .\administrator for the username since we're using local credentials" -ForegroundColor Yellow
+
+$credentialPrompt = "Enter local administrator credentials"
+$LocalAdminCred = Get-Credential -Message $credentialPrompt -UserName ".\administrator"
+
+if (-not $LocalAdminCred) {
+    Write-Error "Credentials are required to continue."
+    exit 1
+}
+
+# Test network connectivity first
+Write-Host "`nTesting network connectivity..." -ForegroundColor Yellow
+
+# Get network adapter information
+Write-Host "`n1. Checking network adapters:" -ForegroundColor Cyan
+$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+foreach ($adapter in $adapters) {
+    Write-Host "   Adapter: $($adapter.Name)"
+    Write-Host "   Status: $($adapter.Status)"
+    try {
+        $ipConfig = Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction Stop
+        Write-Host "   IP Address: $($ipConfig.IPAddress)"
+        Write-Host "   Subnet Mask: $($ipConfig.PrefixLength)"
+    } catch {
+        Write-Host "   IP Address: Unable to retrieve"
+        Write-Host "   Subnet Mask: Unable to retrieve"
+    }
+    Write-Host ""
+}
+
+# Test DNS resolution
+Write-Host "2. Testing DNS resolution:" -ForegroundColor Cyan
+$dnsServers = Get-DnsClientServerAddress -AddressFamily IPv4 | 
+    Where-Object { $_.ServerAddresses } | 
+    Select-Object -ExpandProperty ServerAddresses -Unique
+Write-Host "   DNS Servers configured: $($dnsServers -join ', ')"
+
+# Test connectivity to DC1
+Write-Host "`n3. Testing connectivity to DC1 ($DC1IP):" -ForegroundColor Cyan
+$dc1Ping = Test-Connection -ComputerName $DC1IP -Count 1 -Quiet
+Write-Host "   Ping DC1: $(if ($dc1Ping) { 'Success' } else { 'Failed' })"
+
+if (-not $dc1Ping) {
+    Write-Host "`nWARNING: Cannot reach DC1. Please verify:" -ForegroundColor Red
+    Write-Host "1. DC1 is powered on and running"
+    Write-Host "2. Network settings are correct"
+    Write-Host "3. Firewall rules allow ICMP traffic"
+    Write-Host "4. Both servers are on the same network/subnet"
+    exit 1
+}
+
+# Test connectivity to target server
+Write-Host "`n4. Testing connectivity to target server ($TargetServer):" -ForegroundColor Cyan
+$targetPing = Test-Connection -ComputerName $TargetServer -Count 1 -Quiet
+Write-Host "   Ping Target: $(if ($targetPing) { 'Success' } else { 'Failed' })"
+
+if (-not $targetPing) {
+    Write-Host "`nWARNING: Cannot reach target server. Please verify:" -ForegroundColor Red
+    Write-Host "1. The server is powered on"
+    Write-Host "2. IP address $TargetServer is correct"
+    Write-Host "3. The server's network settings are properly configured"
+    
+    # Try to get route information
+    Write-Host "`nNetwork route information:" -ForegroundColor Yellow
+    Get-NetRoute -AddressFamily IPv4 | Where-Object { 
+        $_.DestinationPrefix -like "192.168.*" -or 
+        $_.DestinationPrefix -eq "0.0.0.0/0" 
+    } | Format-Table -AutoSize
+    
+    Write-Host "`nTroubleshooting steps:" -ForegroundColor Yellow
+    Write-Host "1. Verify target server IP configuration (on server console):"
+    Write-Host "   ipconfig /all"
+    Write-Host "2. Check if the server responds to ping (on server console):"
+    Write-Host "   ping $DC1IP"
+    Write-Host "3. Verify network adapter settings (on server console):"
+    Write-Host "   Get-NetAdapter"
+    Write-Host "   Get-NetIPAddress -AddressFamily IPv4"
+    exit 1
+}
+
+# Test server accessibility before proceeding
+Write-Host "`nTesting server accessibility..." -ForegroundColor Yellow
+if (-not (Test-WSMan -ComputerName $DC2IP -Authentication Negotiate -ErrorAction SilentlyContinue)) {
+    Write-Host "`nServer appears to be inaccessible or in a problematic state." -ForegroundColor Red
+    Show-RecoverySteps
+    $proceed = Read-Host
+    if ($proceed -ne "yes") {
+        exit 1
+    }
+    exit 0
+}
 
 Write-Host "Starting Server Core preparation process..." -ForegroundColor Green
 
@@ -140,11 +444,6 @@ while (-not $connected -and $retryCount -lt $maxRetries) {
         }
     }
 }
-
-
-
-
-
 
 # Main configuration block
 try {
@@ -323,23 +622,122 @@ Enter choice (1-3)"
         }
     }
 
-    # Rename computer (this for some reason did not report any errors but upon restart did not actually set the new name so I had to set it manually from the SConfig menu from the VM Console host so please do more testing and refactor as needed)
+    # Check current domain status
+    Write-Host "`nChecking current domain status..." -ForegroundColor Yellow
+    $domainCheckParams = @{
+        ComputerName = $TargetServer
+        Credential   = $LocalAdminCred
+        ScriptBlock  = {
+            $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
+            return @{
+                Domain = $computerSystem.Domain
+                PartOfDomain = $computerSystem.PartOfDomain
+                CurrentName = $env:COMPUTERNAME
+            }
+        }
+    }
+    $domainStatus = Invoke-Command @domainCheckParams
+
+    if ($domainStatus.PartOfDomain) {
+        Write-Host "WARNING: Computer is already part of domain '$($domainStatus.Domain)'" -ForegroundColor Red
+        Write-Host "Current computer name: $($domainStatus.CurrentName)" -ForegroundColor Yellow
+        
+        $removeDomain = Read-Host "Do you want to remove the computer from the current domain before proceeding? (yes/no)"
+        if ($removeDomain -eq "yes") {
+            Write-Host "Removing computer from domain..." -ForegroundColor Yellow
+            $removeDomainParams = @{
+                ComputerName = $TargetServer
+                Credential   = $LocalAdminCred
+                ScriptBlock  = {
+                    $localCred = Get-Credential -Message "Enter local administrator credentials for workgroup"
+                    Remove-Computer -UnjoinDomainCredential $using:DomainCred -Force -LocalCredential $localCred
+                }
+            }
+            Invoke-Command @removeDomainParams
+            
+            Write-Host "Computer removed from domain. A restart is required." -ForegroundColor Green
+            $restartParams = @{
+                ComputerName = $TargetServer
+                Credential   = $LocalAdminCred
+                ScriptBlock  = { Restart-Computer -Force }
+            }
+            Invoke-Command @restartParams
+            
+            Write-Host "Server is restarting. Please wait 5 minutes and run the script again." -ForegroundColor Yellow
+            exit 0
+        } else {
+            Write-Host "Operation cancelled by user." -ForegroundColor Yellow
+            exit 1
+        }
+    }
+
+    # Rename computer with verification (only using safe methods)
     Write-Host "`nRenaming computer to $NewDCName..." -ForegroundColor Yellow
     $renameParams = @{
         ComputerName = $TargetServer
         Credential   = $LocalAdminCred
         ScriptBlock  = {
             param($name)
-            Rename-Computer -NewName $name -Force
+            try {
+                # Get current computer name
+                $currentName = $env:COMPUTERNAME
+                
+                # Check if rename is actually needed
+                if ($currentName -eq $name) {
+                    Write-Host "Computer is already named $name. No rename needed."
+                    return @{
+                        Success = $true
+                        RequiresRestart = $false
+                    }
+                }
+                
+                # Only use Rename-Computer (safer than registry method)
+                Rename-Computer -NewName $name -Force -ErrorAction Stop
+                Write-Host "Computer rename to $name is pending and will take effect after restart."
+                return @{
+                    Success = $true
+                    RequiresRestart = $true
+                }
+            } catch {
+                Write-Error "Failed to rename computer: $_"
+                return @{
+                    Success = $false
+                    RequiresRestart = $false
+                }
+            }
         }
         ArgumentList = $NewDCName
     }
-    Invoke-Command @renameParams
+    
+    $renameResult = Invoke-Command @renameParams
+    if (-not $renameResult.Success) {
+        Write-Error "Failed to rename the computer to $NewDCName."
+        exit 1
+    }
 
-    # Join domain
+    # Only restart if rename requires it
+    if ($renameResult.RequiresRestart) {
+        # Restart after rename before attempting domain join
+        Write-Host "`nRestarting server to apply computer name change..." -ForegroundColor Yellow
+        $restartParams = @{
+            ComputerName = $TargetServer
+            Credential   = $LocalAdminCred
+            ScriptBlock  = { Restart-Computer -Force }
+        }
+        Invoke-Command @restartParams
+        
+        Write-Host "`nServer is restarting to apply the new computer name." -ForegroundColor Green
+        Write-Host "Please wait 5 minutes and run the script again to complete the domain join." -ForegroundColor Yellow
+        Write-Host "`nAfter restart:" -ForegroundColor Cyan
+        Write-Host "1. Wait for the server to come back online (about 5 minutes)"
+        Write-Host "2. Run this script again to complete the domain join"
+        exit 0
+    }
+
+    # Proceed with domain join if no restart was needed
     Write-Host "`nPreparing to join domain $DomainName..." -ForegroundColor Yellow
     $DomainCred = Get-Credential -Message "Enter domain admin credentials for $DomainName"
-    
+
     $joinParams = @{
         ComputerName = $TargetServer
         Credential   = $LocalAdminCred
@@ -349,6 +747,8 @@ Enter choice (1-3)"
         }
         ArgumentList = @($DomainName, $DomainCred)
     }
+
+    Write-Host "Joining domain $DomainName..." -ForegroundColor Yellow
     Invoke-Command @joinParams
 
     Write-Host "`nServer preparation completed successfully!" -ForegroundColor Green
