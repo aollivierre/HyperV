@@ -4138,7 +4138,7 @@ function Get-DynamicVHDPath {
 }
 
 # Define the ISO path
-$isoPath = "E:\iso\SERVER_2022_Feb_01_EVAL_x64FRE_en-us.iso"
+$isoPath = "D:\VM\Setup\ISO\Windows_SERVER_2022_EVAL_x64FRE_en-us-May-17-2024.iso"
 
 # Get the Windows edition choice from user
 try {

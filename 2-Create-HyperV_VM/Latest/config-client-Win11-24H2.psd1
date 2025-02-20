@@ -9,6 +9,6 @@
     MemoryMinimumBytes   = "1GB"
     MemoryMaximumBytes   = "16GB"
     Generation           = 2
-    VMNamePrefixFormat   = "{0:D3} - SandBox Dev M365 - BYOD - CAP - Pilot - Win 11 Client"
+    VMNamePrefixFormat   = "{0:D3} - NMC - EJ - Intune - App testing - TeamViewer"
     ProcessorCount       = 24
 }
