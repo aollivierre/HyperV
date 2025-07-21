@@ -11,6 +11,6 @@
     MemoryMaximumBytes = "16GB"
     Generation         = 2
     # VMNamePrefixFormat = "{0:D3} - MGMT 001 - PS - WAC - SM - RSAT - Desktop Exp"
-    VMNamePrefixFormat = "{0:D3} - ABC Lab - RD Gateway 03 - Server Desktop"
+    VMNamePrefixFormat = "{0:D3} - ABC Lab - DC4 - Server Desktop"
     ProcessorCount     = 24
 }

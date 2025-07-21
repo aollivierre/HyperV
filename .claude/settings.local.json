@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wmic memorychip get:*)",
+      "Bash(wmic:*)",
+      "Bash(powershell:*)",
+      "Bash(cmd /c:*)"
+    ],
+    "deny": []
+  }
+}

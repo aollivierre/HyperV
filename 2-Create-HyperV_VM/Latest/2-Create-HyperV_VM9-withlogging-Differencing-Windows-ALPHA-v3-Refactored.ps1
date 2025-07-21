@@ -1,5 +1,100 @@
+#requires -Version 5.1
+#requires -Module Hyper-V
+#requires -RunAsAdministrator
+
+<#
+.SYNOPSIS
+    Enhanced Hyper-V VM creation script with differencing disk support and comprehensive logging.
+
+.DESCRIPTION
+    This script creates Hyper-V virtual machines with advanced configuration options including
+    differencing disks, TPM support, and dynamic memory management. All previously hardcoded
+    values have been moved to parameters for maximum flexibility across organizations.
+
+.PARAMETER EnvironmentMode
+    Specifies the environment mode (dev/prod). Affects logging verbosity and behavior.
+
+.PARAMETER ModulePath
+    Path to the EnhancedHyperVAO module to import.
+
+.PARAMETER PSFLogPath
+    Directory path for PSFramework CSV logging.
+
+.PARAMETER TranscriptLogPath
+    Directory path for PowerShell transcript logging.
+
+.PARAMETER SevenZipPath
+    Full path to 7-Zip executable for ISO extraction.
+
+.PARAMETER JobName
+    Name identifier for the job used in logging.
+
+.PARAMETER ConfigurationPath
+    Directory path containing VM configuration files.
+
+.PARAMETER DefaultVHDSize
+    Default size for new VHD files when not using differencing disks.
+
+.PARAMETER ModuleStarterParams
+    Hashtable of parameters for Invoke-ModuleStarter.
+
+.EXAMPLE
+    .\2-Create-HyperV_VM9-withlogging-Differencing-Windows-ALPHA-v3-Refactored.ps1
+
+.EXAMPLE
+    .\2-Create-HyperV_VM9-withlogging-Differencing-Windows-ALPHA-v3-Refactored.ps1 -EnvironmentMode 'dev' -JobName 'DevVM-Creation'
+
+.NOTES
+    Version: 3.1.0
+    Author: Enhanced for organizational reusability
+    Requires: Windows 10/11 or Windows Server 2016+, Hyper-V feature enabled
+#>
+
+[CmdletBinding()]
+param(
+    # Environment Configuration
+    [Parameter(HelpMessage = "Environment mode for script execution")]
+    [ValidateSet('dev', 'prod')]
+    [string]$EnvironmentMode = 'prod',
+    
+    # Path Configuration
+    [Parameter(HelpMessage = "Path to the EnhancedHyperVAO module")]
+    [string]$ModulePath = "C:\code\Modulesv3\EnhancedHyperVAO\EnhancedHyperVAO.psd1",
+    
+    [Parameter(HelpMessage = "Directory for PSFramework log files")]
+    [string]$PSFLogPath = 'C:\Logs\PSF',
+    
+    [Parameter(HelpMessage = "Directory for transcript log files")]
+    [string]$TranscriptLogPath = "C:\Logs\Transcript",
+    
+    [Parameter(HelpMessage = "Path to 7-Zip executable")]
+    [string]$SevenZipPath = "C:\Program Files\7-Zip\7z.exe",
+    
+    # Job Configuration
+    [Parameter(HelpMessage = "Job name for logging identification")]
+    [string]$JobName = "HyperV-VMCreation",
+    
+    # VM Configuration
+    [Parameter(HelpMessage = "Path to VM configuration files")]
+    [string]$ConfigurationPath = $PSScriptRoot,
+    
+    [Parameter(HelpMessage = "Default VHD size for new VMs")]
+    [uint64]$DefaultVHDSize = 100GB,
+    
+    # Module Configuration
+    [Parameter(HelpMessage = "Parameters for module starter")]
+    [hashtable]$ModuleStarterParams = @{
+        Mode                   = 'dev'
+        SkipPSGalleryModules   = $true
+        SkipCheckandElevate    = $true
+        SkipPowerShell7Install = $true
+        SkipEnhancedModules    = $true
+        SkipGitRepos           = $false
+    }
+)
+
 # Set environment variable globally for all users
-[System.Environment]::SetEnvironmentVariable('EnvironmentMode', 'dev', 'Machine')
+[System.Environment]::SetEnvironmentVariable('EnvironmentMode', $EnvironmentMode, 'Machine')
 
 # Retrieve the environment mode (default to 'prod' if not set)
 $mode = $env:EnvironmentMode
@@ -8,15 +103,12 @@ $mode = $env:EnvironmentMode
 switch ($mode) {
     'dev' {
         Write-EnhancedLog -Message "Running in development mode" -Level 'WARNING'
-        # Your development logic here
     }
     'prod' {
         Write-EnhancedLog -Message "Running in production mode" -ForegroundColor Green
-        # Your production logic here
     }
     default {
         Write-EnhancedLog -Message "Unknown mode. Defaulting to production." -ForegroundColor Red
-        # Default to production
     }
 }
 
@@ -27,21 +119,11 @@ switch ($mode) {
 #                                                                                               #
 #################################################################################################
 
-# Define a hashtable for splatting
-$moduleStarterParams = @{
-    Mode                   = 'dev'
-    SkipPSGalleryModules   = $true
-    SkipCheckandElevate    = $true
-    SkipPowerShell7Install = $true
-    SkipEnhancedModules    = $true
-    SkipGitRepos           = $false
-}
+# Call the function using the provided parameters
+Invoke-ModuleStarter @ModuleStarterParams
 
-# Call the function using the splat
-Invoke-ModuleStarter @moduleStarterParams
-
-
-Import-Module -Name "C:\code\Modulesv3\EnhancedHyperVAO\EnhancedHyperVAO.psd1" -Force
+# Import the specified module
+Import-Module -Name $ModulePath -Force
 
 #endregion FIRING UP MODULE STARTER
 
@@ -54,14 +136,13 @@ Import-Module -Name "C:\code\Modulesv3\EnhancedHyperVAO\EnhancedHyperVAO.psd1" -
 Set-PSFConfig -Fullname 'PSFramework.Logging.FileSystem.ModernLog' -Value $true -PassThru | Register-PSFConfig -Scope SystemDefault
 
 # Define the base logs path and job name
-$JobName = "HyperV-VMCreation"
 $parentScriptName = Get-ParentScriptName
 Write-EnhancedLog -Message "Parent Script Name: $parentScriptName"
 
 # Call the Get-PSFCSVLogFilePath function to generate the dynamic log file path
 $paramGetPSFCSVLogFilePath = @{
-    LogsPath         = 'C:\Logs\PSF'
-    JobName          = $jobName
+    LogsPath         = $PSFLogPath
+    JobName          = $JobName
     parentScriptName = $parentScriptName
 }
 
@@ -81,19 +162,18 @@ $paramSetPSFLoggingProvider = @{
 Set-PSFLoggingProvider @paramSetPSFLoggingProvider
 #endregion HANDLE PSF MODERN LOGGING
 
-
-#region HANDLE Transript LOGGING
+#region HANDLE Transcript LOGGING
 #################################################################################################
 #                                                                                               #
-#                            HANDLE Transript LOGGING                                           #
+#                            HANDLE Transcript LOGGING                                           #
 #                                                                                               #
 #################################################################################################
 # Start the script with error handling
 try {
     # Generate the transcript file path
     $GetTranscriptFilePathParams = @{
-        TranscriptsPath  = "C:\Logs\Transcript"
-        JobName          = $jobName
+        TranscriptsPath  = $TranscriptLogPath
+        JobName          = $JobName
         parentScriptName = $parentScriptName
     }
     $transcriptPath = Get-TranscriptFilePath @GetTranscriptFilePathParams
@@ -107,25 +187,19 @@ catch {
     if ($transcriptPath) {
         Stop-Transcript
         Write-EnhancedLog -Message "Transcript stopped." -ForegroundColor Cyan
-        # Stop logging in the finally block
-
     }
     else {
         Write-EnhancedLog -Message "Transcript was not started due to an earlier error." -ForegroundColor Red
     }
 
     # Stop PSF Logging
-
-    # Ensure the log is written before proceeding
     Wait-PSFMessage
-
-    # Stop logging in the finally block by disabling the provider
     Set-PSFLoggingProvider -Name 'logfile' -InstanceName $instanceName -Enabled $false
 
     Handle-Error -ErrorRecord $_
     throw $_  # Re-throw the error after logging it
 }
-#endregion HANDLE Transript LOGGING
+#endregion HANDLE Transcript LOGGING
 
 try {
     #region Script Logic
@@ -136,8 +210,7 @@ try {
     #################################################################################################
 
     # Get the configuration
-    $configPath = Join-Path -Path $PSScriptRoot -ChildPath "."
-    $config = Get-VMConfiguration -ConfigPath $configPath
+    $config = Get-VMConfiguration -ConfigPath $ConfigurationPath
 
     # Verify configuration was loaded
     if (-not $config) {
@@ -145,53 +218,14 @@ try {
         exit 1
     }
 
-    # Extract OPNsense ISO if it's compressed
+    # Extract OPNsense ISO if it's compressed using the new function
     if ($config.InstallMediaPath.EndsWith('.bz2')) {
-        $compressedIsoPath = $config.InstallMediaPath
-        $extractedIsoPath = $compressedIsoPath -replace '\.bz2$', ''
-        
-        # Check if the extracted ISO already exists
-        if (-not (Test-Path -Path $extractedIsoPath)) {
-            Write-EnhancedLog -Message "Extracting compressed OPNsense ISO..." -Level "INFO"
-            
-            try {
-                # Use 7-Zip to extract the bz2 file
-                $7zipPath = "C:\Program Files\7-Zip\7z.exe"
-                $extractDir = Split-Path -Path $extractedIsoPath -Parent
-                
-                # Make sure the target directory exists
-                if (-not (Test-Path -Path $extractDir)) {
-                    New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
-                    Write-EnhancedLog -Message "Created directory: $extractDir" -Level "INFO"
-                }
-                
-                # Extract using 7-Zip with correct parameters
-                $extractParams = @(
-                    "e", 
-                    "`"$compressedIsoPath`"", 
-                    "-o`"$extractDir`"", 
-                    "-y"
-                )
-                
-                Write-EnhancedLog -Message "Running 7-Zip extraction: $7zipPath $extractParams" -Level "INFO"
-                $process = Start-Process -FilePath $7zipPath -ArgumentList $extractParams -Wait -NoNewWindow -PassThru
-                
-                if ($process.ExitCode -eq 0 -and (Test-Path -Path $extractedIsoPath)) {
-                    Write-EnhancedLog -Message "Successfully extracted ISO to $extractedIsoPath" -Level "INFO"
-                    # Update the InstallMediaPath to use the extracted ISO
-                    $config.InstallMediaPath = $extractedIsoPath
-                } else {
-                    Write-EnhancedLog -Message "Failed to extract ISO file. Exit code: $($process.ExitCode)" -Level "ERROR"
-                    exit 1
-                }
-            } catch {
-                Write-EnhancedLog -Message "Error extracting ISO: $_" -Level "ERROR"
-                exit 1
-            }
-        } else {
-            Write-EnhancedLog -Message "Using existing extracted ISO: $extractedIsoPath" -Level "INFO"
-            $config.InstallMediaPath = $extractedIsoPath
+        $expandParams = @{
+            CompressedPath = $config.InstallMediaPath
+            SevenZipPath   = $SevenZipPath
         }
+        $extractedIsoPath = Expand-CompressedISO @expandParams
+        $config.InstallMediaPath = $extractedIsoPath
     }
 
     # Create params hashtable for dismounting VHDX
@@ -239,95 +273,12 @@ try {
     $UsesDifferencing = $choice -eq '2'
     $VMCreated = $false
 
-    # Function to get available virtual switch
-    function Get-AvailableVirtualSwitch {
-        [CmdletBinding()]
-        param(
-            [Parameter()]
-            [string]$SwitchPurpose = "Default"
-        )
-        
-        try {
-            # Get all available virtual switches
-            $switches = Get-VMSwitch -ErrorAction Stop
-            
-            if (-not $switches) {
-                Write-EnhancedLog -Message "No virtual switches found. Creating default External switch..." -Level "WARNING"
-                
-                # Get the first available network adapter
-                $netAdapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 1
-                
-                if ($netAdapter) {
-                    # Create new external switch
-                    $newSwitch = New-VMSwitch -Name "Default External Switch" -NetAdapterName $netAdapter.Name -AllowManagementOS $true
-                    Write-EnhancedLog -Message "Created new external switch: $($newSwitch.Name)" -Level "INFO"
-                    return $newSwitch.Name
-                } else {
-                    throw "No network adapters available to create virtual switch"
-                }
-            }
-            
-            # If there's only one switch, use it
-            if ($switches.Count -eq 1) {
-                Write-EnhancedLog -Message "Using the only available switch: $($switches[0].Name)" -Level "INFO"
-                return $switches[0].Name
-            }
-            
-            # If multiple switches exist, show selection menu
-            Write-Host "`nAvailable Virtual Switches ($SwitchPurpose):" -ForegroundColor Cyan
-            for ($i = 0; $i -lt $switches.Count; $i++) {
-                Write-Host "[$i] $($switches[$i].Name) (Type: $($switches[$i].SwitchType))"
-            }
-            
-            do {
-                $selection = Read-Host "`nSelect virtual switch for $SwitchPurpose [0-$($switches.Count - 1)]"
-            } while ($selection -notmatch '^\d+$' -or [int]$selection -lt 0 -or [int]$selection -ge $switches.Count)
-            
-            return $switches[[int]$selection].Name
-        }
-        catch {
-            Write-EnhancedLog -Message "Error getting virtual switch: $_" -Level "ERROR"
-            throw
-        }
-    }
-
-    # Get virtual switches dynamically 
+    # Get virtual switches dynamically using the modularized function
     $externalSwitchName = Get-AvailableVirtualSwitch -SwitchPurpose "WAN (External)"
     Write-EnhancedLog -Message "Using external virtual switch for WAN: $externalSwitchName" -Level "INFO"
     
-    # For OPNsense, we need a second switch for LAN (can be External or Private)
-    $internalSwitchName = $null
-    
-    # Check if there's already a switch named "OPNsense-LAN-Private"
-    $existingOPNSwitch = Get-VMSwitch | Where-Object { $_.Name -eq "OPNsense-LAN-Private" } | Select-Object -First 1
-    
-    if ($existingOPNSwitch) {
-        # Use the existing OPNsense switch regardless of type
-        $internalSwitchName = $existingOPNSwitch.Name
-        Write-EnhancedLog -Message "Found existing OPNsense switch: $internalSwitchName (Type: $($existingOPNSwitch.SwitchType))" -Level "INFO"
-    } else {
-        # Look for any private switches
-        $privateSwitches = Get-VMSwitch | Where-Object { $_.SwitchType -eq "Private" }
-        
-        if (-not $privateSwitches) {
-            # Create a new private switch for LAN
-            Write-EnhancedLog -Message "Creating a new private switch for LAN interface..." -Level "INFO"
-            $internalSwitchName = "OPNsense-LAN-Private-New"
-            try {
-                New-VMSwitch -Name $internalSwitchName -SwitchType Private
-                Write-EnhancedLog -Message "Successfully created private switch: $internalSwitchName" -Level "INFO"
-            }
-            catch {
-                Write-EnhancedLog -Message "Failed to create private switch: $_" -Level "ERROR"
-                throw
-            }
-        } else {
-            # Use the first available private switch
-            $internalSwitchName = $privateSwitches[0].Name
-            Write-EnhancedLog -Message "Using existing private switch: $internalSwitchName" -Level "INFO"
-        }
-    }
-    
+    # For OPNsense, we need a second switch for LAN
+    $internalSwitchName = Get-AvailableVirtualSwitch -SwitchPurpose "LAN (Internal)" -PreferredType "Private"
     Write-EnhancedLog -Message "Using internal virtual switch for LAN: $internalSwitchName" -Level "INFO"
 
     # Define common VM parameters from configuration
@@ -349,7 +300,7 @@ try {
     }
     else {
         # For new disk, create fresh at destination
-        $vmParams['NewVHDSizeBytes'] = 100GB  # Or get from config if available
+        $vmParams['NewVHDSizeBytes'] = $DefaultVHDSize
         $vmParams['VHDPath'] = $vmDestinationPath
     }
 
@@ -410,7 +361,7 @@ try {
         exit 1
     }
 
-    # Then modify how you call it in your main script
+    # Configure VM if creation was successful
     if ($VMCreated) {
         if (-not $UsesDifferencing) {
             # For new VMs, add DVD drive and configure boot
@@ -448,13 +399,24 @@ try {
         # Add second network adapter for OPNsense LAN interface
         Write-EnhancedLog -Message "Adding second network adapter for LAN interface..." -Level "INFO"
         try {
+            # Ensure we have a clean switch name (handle case where function returned object instead of string)
+            $cleanSwitchName = if ($internalSwitchName -is [string]) { 
+                $internalSwitchName 
+            } else { 
+                $internalSwitchName.Name 
+            }
+            
+            Write-EnhancedLog -Message "Looking for switch with name: $cleanSwitchName" -Level "INFO"
+            
             # Get the specific switch object to avoid ambiguity
-            $lanSwitch = Get-VMSwitch | Where-Object { $_.Name -eq $internalSwitchName } | Select-Object -First 1
+            $lanSwitch = Get-VMSwitch | Where-Object { $_.Name -eq $cleanSwitchName } | Select-Object -First 1
             if ($lanSwitch) {
                 Add-VMNetworkAdapter -VMName $vmParams.VMName -Name "LAN" -SwitchName $lanSwitch.Name
                 Write-EnhancedLog -Message "Successfully added LAN network adapter connected to: $($lanSwitch.Name) (Type: $($lanSwitch.SwitchType))" -Level "INFO"
             } else {
-                Write-EnhancedLog -Message "Could not find switch: $internalSwitchName" -Level "ERROR"
+                Write-EnhancedLog -Message "Could not find switch with name: $cleanSwitchName" -Level "ERROR"
+                Write-EnhancedLog -Message "Available switches:" -Level "INFO"
+                Get-VMSwitch | ForEach-Object { Write-EnhancedLog -Message "  - $($_.Name) (Type: $($_.SwitchType))" -Level "INFO" }
             }
         }
         catch {
@@ -469,10 +431,7 @@ try {
         exit 1
     }
 
-  
-
-    # $DBG
-
+    # Start VM and connect console
     $StartVMParams = @{
         VMName = $VMName
     }
@@ -486,9 +445,7 @@ try {
     Log-Params -Params $ConnectVMConsoleParams
 
     Start-VMEnhanced @StartVMParams
-
     Connect-VMConsole @ConnectVMConsoleParams
-
 
     # Initialize counters
     $summary = @{
@@ -501,20 +458,9 @@ try {
     }
 
     # Increment counters during script execution
-    if ($VMconfigPSD1) {
+    if ($config) {
         $summary.ConfigLoaded++
         $summary.ActionsSuccessful++
-    }
-
-    # VM Checking Loop (within your process loop for checking VMs)
-    foreach ($vm in $allVMs) {
-        $summary.VMsChecked++
-        if ($vm) {
-            $summary.ActionsSuccessful++
-        }
-        else {
-            $summary.ActionsFailed++
-        }
     }
 
     # After VM creation
@@ -550,32 +496,20 @@ try {
 
     Write-Host "============================" -ForegroundColor Cyan
 
-
     #endregion Script Logic
-
-
-    
-
-    #endregion
 }
 catch {
     Write-EnhancedLog -Message "An error occurred during script execution: $_" -Level 'ERROR'
     if ($transcriptPath) {
         Stop-Transcript
         Write-EnhancedLog -Message "Transcript stopped." -ForegroundColor Cyan
-        # Stop logging in the finally block
-
     }
     else {
         Write-EnhancedLog -Message "Transcript was not started due to an earlier error." -ForegroundColor Red
     }
 
     # Stop PSF Logging
-
-    # Ensure the log is written before proceeding
     Wait-PSFMessage
-
-    # Stop logging in the finally block by disabling the provider
     Set-PSFLoggingProvider -Name 'logfile' -InstanceName $instanceName -Enabled $false
 
     Handle-Error -ErrorRecord $_
@@ -586,14 +520,10 @@ finally {
     if ($transcriptPath) {
         Stop-Transcript
         Write-EnhancedLog -Message "Transcript stopped." -ForegroundColor Cyan
-        # Stop logging in the finally block
-
     }
     else {
         Write-EnhancedLog -Message "Transcript was not started due to an earlier error." -ForegroundColor Red
     }
-    # 
-
     
     # Ensure the log is written before proceeding
     Wait-PSFMessage

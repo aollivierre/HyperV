@@ -242,9 +242,30 @@ function Get-NetworkConfigStatus {
         }
         
         $networkStatus = Invoke-Command -Session $session -ScriptBlock {
-            $adapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1
-            $ipConfig = Get-NetIPConfiguration -InterfaceIndex $adapter.ifIndex
-            $dhcpStatus = Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4
+            # Get all up adapters that have an IPv4 address
+            $adapters = Get-NetAdapter | Where-Object { 
+                $_.Status -eq 'Up' -and 
+                (Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue)
+            }
+            
+            # Find the adapter that matches our target IP if specified
+            $targetIP = $using:ComputerName
+            $adapter = $adapters | Where-Object {
+                $ipAddresses = Get-NetIPAddress -InterfaceIndex $_.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue
+                $ipAddresses.IPAddress -contains $targetIP
+            }
+
+            # If no adapter found with target IP, take the first one with an IPv4 address
+            if (-not $adapter) {
+                $adapter = $adapters | Select-Object -First 1
+            }
+
+            if (-not $adapter) {
+                throw "No active network adapter with IPv4 address found"
+            }
+
+            $ipConfig = Get-NetIPConfiguration -InterfaceIndex $adapter.ifIndex -ErrorAction Stop
+            $dhcpStatus = Get-NetIPInterface -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction Stop
             
             return @{
                 AdapterName = $adapter.Name
@@ -287,32 +308,32 @@ function Show-RecoverySteps {
 }
 
 # Add parameter prompts at the beginning
-$DC1IP = Read-Host "Enter DC1 (Primary DNS) IP address"
-if (-not ($DC1IP -as [IPAddress])) {
-    Write-Error "Invalid IP address format for DC1"
+$PrimaryDNSIP = Read-Host "Enter Primary DNS Server IP address"
+if (-not ($PrimaryDNSIP -as [IPAddress])) {
+    Write-Error "Invalid IP address format for Primary DNS"
     exit 1
 }
 
-$DC2IP = Read-Host "Enter desired DC2 (This server) IP address"
-if (-not ($DC2IP -as [IPAddress])) {
-    Write-Error "Invalid IP address format for DC2"
+$TargetIP = Read-Host "Enter desired Target Server IP address"
+if (-not ($TargetIP -as [IPAddress])) {
+    Write-Error "Invalid IP address format for Target Server"
     exit 1
 }
 
 # Parameters
-$NewDCName = Read-Host "Enter the name for the new Domain Controller (e.g., DC02)"
-if ([string]::IsNullOrWhiteSpace($NewDCName)) {
-    Write-Error "Domain Controller name cannot be empty"
+$NewComputerName = Read-Host "Enter the new computer name for the server"
+if ([string]::IsNullOrWhiteSpace($NewComputerName)) {
+    Write-Error "Computer name cannot be empty"
     exit 1
 }
 
-$DomainName = Read-Host "Enter the domain name (e.g., contoso.local)"
+$DomainName = Read-Host "Enter the domain name to join (e.g., contoso.local)"
 if ([string]::IsNullOrWhiteSpace($DomainName) -or $DomainName -notmatch '^\w+\.\w+$') {
     Write-Error "Invalid domain name format. Please use format like 'contoso.local'"
     exit 1
 }
 
-$TargetServer = $DC2IP
+$TargetServer = $TargetIP
 $CredentialFile = Join-Path $PSScriptRoot "servercore.secrets"
 
 # Remove existing credential file if it exists to force new credentials
@@ -359,14 +380,14 @@ $dnsServers = Get-DnsClientServerAddress -AddressFamily IPv4 |
     Select-Object -ExpandProperty ServerAddresses -Unique
 Write-Host "   DNS Servers configured: $($dnsServers -join ', ')"
 
-# Test connectivity to DC1
-Write-Host "`n3. Testing connectivity to DC1 ($DC1IP):" -ForegroundColor Cyan
-$dc1Ping = Test-Connection -ComputerName $DC1IP -Count 1 -Quiet
-Write-Host "   Ping DC1: $(if ($dc1Ping) { 'Success' } else { 'Failed' })"
+# Test connectivity to Primary DNS
+Write-Host "`n3. Testing connectivity to Primary DNS ($PrimaryDNSIP):" -ForegroundColor Cyan
+$primaryDNSPing = Test-Connection -ComputerName $PrimaryDNSIP -Count 1 -Quiet
+Write-Host "   Ping Primary DNS: $(if ($primaryDNSPing) { 'Success' } else { 'Failed' })"
 
-if (-not $dc1Ping) {
-    Write-Host "`nWARNING: Cannot reach DC1. Please verify:" -ForegroundColor Red
-    Write-Host "1. DC1 is powered on and running"
+if (-not $primaryDNSPing) {
+    Write-Host "`nWARNING: Cannot reach Primary DNS. Please verify:" -ForegroundColor Red
+    Write-Host "1. Primary DNS is powered on and running"
     Write-Host "2. Network settings are correct"
     Write-Host "3. Firewall rules allow ICMP traffic"
     Write-Host "4. Both servers are on the same network/subnet"
@@ -395,7 +416,7 @@ if (-not $targetPing) {
     Write-Host "1. Verify target server IP configuration (on server console):"
     Write-Host "   ipconfig /all"
     Write-Host "2. Check if the server responds to ping (on server console):"
-    Write-Host "   ping $DC1IP"
+    Write-Host "   ping $PrimaryDNSIP"
     Write-Host "3. Verify network adapter settings (on server console):"
     Write-Host "   Get-NetAdapter"
     Write-Host "   Get-NetIPAddress -AddressFamily IPv4"
@@ -404,7 +425,7 @@ if (-not $targetPing) {
 
 # Test server accessibility before proceeding
 Write-Host "`nTesting server accessibility..." -ForegroundColor Yellow
-if (-not (Test-WSMan -ComputerName $DC2IP -Authentication Negotiate -ErrorAction SilentlyContinue)) {
+if (-not (Test-WSMan -ComputerName $TargetServer -Authentication Negotiate -ErrorAction SilentlyContinue)) {
     Write-Host "`nServer appears to be inaccessible or in a problematic state." -ForegroundColor Red
     Show-RecoverySteps
     $proceed = Read-Host
@@ -455,158 +476,108 @@ try {
     Write-Host "--------------------------------"
     Write-Host "Adapter Name: $($networkStatus.AdapterName)"
     Write-Host "Current IP Address: $($networkStatus.IPAddress)"
-    Write-Host "Desired IP Address: $DC2IP"
+    Write-Host "Desired IP Address: $TargetIP"
     Write-Host "Subnet Mask Length: $($networkStatus.PrefixLength)"
     Write-Host "Default Gateway: $($networkStatus.Gateway)"
     Write-Host "Current DNS Servers: $($networkStatus.DNSServers -join ', ')"
-    Write-Host "Required Primary DNS: $DC1IP"
-    Write-Host "DHCP Status: $(if($networkStatus.IsDHCPEnabled){'Enabled'}else{'Disabled (Static)'})"
-    Write-Host "--------------------------------"
+    Write-Host "Required Primary DNS: $PrimaryDNSIP"
+    Write-Host "DHCP Enabled: $($networkStatus.IsDHCPEnabled)"
 
-    # DNS Configuration
-    Write-Host "`nDNS Configuration is critical for domain join." -ForegroundColor Yellow
-    Write-Host "Primary DNS must be set to DC1 ($DC1IP) for successful domain join." -ForegroundColor Yellow
-    
-    $configureDNS = Read-Host "Do you want to configure DNS settings now? (yes/no)"
-    if ($configureDNS -eq "yes") {
-        $dnsParams = @{
-            ComputerName = $TargetServer
-            Credential   = $LocalAdminCred
-            ScriptBlock  = {
-                param($index, $dc1ip)
-                Set-DnsClientServerAddress -InterfaceIndex $index -ServerAddresses $dc1ip
-            }
-            ArgumentList = @($networkStatus.AdapterIndex, $DC1IP)
-        }
-        Invoke-Command @dnsParams
+    Write-Host "`nNOTE: Primary DNS must be set to $PrimaryDNSIP for successful domain join." -ForegroundColor Yellow
 
-        Write-Host "DNS settings updated successfully." -ForegroundColor Green
-        Write-Host "Primary DNS now set to DC1 ($DC1IP)" -ForegroundColor Green
-    }
+    # Prompt for configuration choice
+    Write-Host "`nConfiguration Options:" -ForegroundColor Cyan
+    Write-Host "1. Update DNS settings only"
+    Write-Host "2. Configure new static IP settings"
+    Write-Host "3. Skip network configuration"
+    $choice = Read-Host "`nEnter your choice (1-3)"
 
-    # IP Configuration
-    if (-not $networkStatus.IsDHCPEnabled) {
-        Write-Host "`nWARNING: Static IP configuration detected!" -ForegroundColor Yellow
-        $choice = Read-Host "`nChoose an action:
-1. Keep current static configuration
-2. Revert to DHCP
-3. Configure new static settings with IP $DC2IP
-Enter choice (1-3)"
-
-        switch ($choice) {
-            "1" {
-                if ($networkStatus.IPAddress -ne $DC2IP) {
-                    Write-Host "WARNING: Current IP ($($networkStatus.IPAddress)) differs from desired DC2 IP ($DC2IP)" -ForegroundColor Red
-                    $confirm = Read-Host "Are you sure you want to keep the current IP? (yes/no)"
-                    if ($confirm -ne "yes") {
-                        Write-Host "Operation cancelled by user." -ForegroundColor Yellow
-                        exit
-                    }
+    switch ($choice) {
+        "1" {
+            Write-Host "`nUpdating DNS settings..." -ForegroundColor Yellow
+            $dnsParams = @{
+                ComputerName = $TargetServer
+                Credential = $LocalAdminCred
+                ScriptBlock = {
+                    param($adapterIndex, $dnsServer)
+                    Set-DnsClientServerAddress -InterfaceIndex $adapterIndex -ServerAddresses $dnsServer
                 }
-                Write-Host "Keeping current static configuration..." -ForegroundColor Green
-                $netConfig = $networkStatus
+                ArgumentList = @($networkStatus.AdapterIndex, $PrimaryDNSIP)
             }
-            "2" {
+            
+            Invoke-Command @dnsParams
+            Write-Host "Primary DNS now set to $PrimaryDNSIP" -ForegroundColor Green
+        }
+        "2" {
+            Write-Host "`nConfiguring static IP settings..." -ForegroundColor Yellow
+            Write-Host "1. Current IP: $($networkStatus.IPAddress)"
+            Write-Host "2. DHCP Status: $($networkStatus.IsDHCPEnabled)"
+            Write-Host "3. Configure new static settings with IP $TargetIP"
+
+            if ($networkStatus.IsDHCPEnabled) {
+                if ($networkStatus.IPAddress -ne $TargetIP) {
+                    Write-Host "WARNING: Current IP ($($networkStatus.IPAddress)) differs from desired Target IP ($TargetIP)" -ForegroundColor Red
+                }
                 Write-Host "Reverting to DHCP..." -ForegroundColor Yellow
                 $dhcpParams = @{
                     ComputerName = $TargetServer
-                    Credential   = $LocalAdminCred
-                    ScriptBlock  = {
-                        param($index)
-                        Set-NetIPInterface -InterfaceIndex $index -Dhcp Enabled
-                        Set-DnsClientServerAddress -InterfaceIndex $index -ResetServerAddresses
+                    Credential = $LocalAdminCred
+                    ScriptBlock = {
+                        param($config)
+                        Set-NetIPInterface -InterfaceIndex $config.AdapterIndex -Dhcp Enabled
+                        Set-DnsClientServerAddress -InterfaceIndex $config.AdapterIndex -ResetServerAddresses
                     }
-                    ArgumentList = $networkStatus.AdapterIndex
+                    ArgumentList = $networkStatus
                 }
                 Invoke-Command @dhcpParams
                 Write-Host "Successfully reverted to DHCP." -ForegroundColor Green
-                exit
             }
-            "3" {
-                Write-Host "Setting new static IP configuration..." -ForegroundColor Yellow
-                $staticIPParams = @{
-                    ComputerName = $TargetServer
-                    Credential   = $LocalAdminCred
-                    ScriptBlock  = {
-                        param($config, $newIP)
-                        
-                        $removeParams = @{
-                            InterfaceIndex = $config.AdapterIndex
-                            AddressFamily  = 'IPv4'
-                            Confirm        = $false
-                            ErrorAction    = 'SilentlyContinue'
-                        }
-                        Remove-NetIPAddress @removeParams
-                        Remove-NetRoute @removeParams
 
-                        $newIPParams = @{
-                            InterfaceIndex = $config.AdapterIndex
-                            IPAddress      = $newIP
-                            PrefixLength   = $config.PrefixLength
-                            DefaultGateway = $config.Gateway
-                        }
-                        New-NetIPAddress @newIPParams
+            Write-Host "Setting new static IP configuration..." -ForegroundColor Yellow
+            $staticIPParams = @{
+                ComputerName = $TargetServer
+                Credential = $LocalAdminCred
+                ScriptBlock = {
+                    param($config, $newIP)
+                    
+                    $removeParams = @{
+                        InterfaceIndex = $config.AdapterIndex
+                        AddressFamily = 'IPv4'
+                        Confirm = $false
+                        ErrorAction = 'SilentlyContinue'
                     }
-                    ArgumentList = @($networkStatus, $DC2IP)
+                    Remove-NetIPAddress @removeParams
+                    Remove-NetRoute @removeParams
+
+                    $newIPParams = @{
+                        InterfaceIndex = $config.AdapterIndex
+                        IPAddress = $newIP
+                        PrefixLength = $config.PrefixLength
+                        DefaultGateway = $config.Gateway
+                    }
+                    New-NetIPAddress @newIPParams
                 }
-                Invoke-Command @staticIPParams
-
-                Write-Host "Static IP configuration updated successfully." -ForegroundColor Green
-                $netConfig = $networkStatus
-                $netConfig.IPAddress = $DC2IP
+                ArgumentList = @($networkStatus, $TargetIP)
             }
-            default {
-                Write-Host "Invalid choice. Exiting..." -ForegroundColor Red
-                exit 1
-            }
-        }
-    }
-    else {
-        Write-Host "`nDHCP is currently enabled." -ForegroundColor Green
-        $proceed = Read-Host "Do you want to configure static IP settings with IP $DC2IP? (yes/no)"
-        if ($proceed -ne "yes") {
-            Write-Host "Operation cancelled by user." -ForegroundColor Yellow
-            exit
-        }
+            Invoke-Command @staticIPParams
 
-        $configureStaticParams = @{
-            ComputerName = $TargetServer
-            Credential   = $LocalAdminCred
-            ScriptBlock  = {
-                param($config, $newIP)
-                
-                $removeParams = @{
-                    InterfaceIndex = $config.AdapterIndex
-                    AddressFamily  = 'IPv4'
-                    Confirm        = $false
-                    ErrorAction    = 'SilentlyContinue'
-                }
-                Remove-NetIPAddress @removeParams
-                Remove-NetRoute @removeParams
-
-                $newIPParams = @{
-                    InterfaceIndex = $config.AdapterIndex
-                    IPAddress      = $newIP
-                    PrefixLength   = $config.PrefixLength
-                    DefaultGateway = $config.Gateway
-                }
-                New-NetIPAddress @newIPParams
-            }
-            ArgumentList = @($networkStatus, $DC2IP)
+            Write-Host "Static IP configuration updated successfully." -ForegroundColor Green
         }
-        Invoke-Command @configureStaticParams
-
-        Write-Host "Static IP configuration set successfully." -ForegroundColor Green
-        $netConfig = $networkStatus
-        $netConfig.IPAddress = $DC2IP
+        "3" {
+            Write-Host "Skipping network configuration..." -ForegroundColor Yellow
+        }
+        default {
+            Write-Host "Invalid choice. Exiting..." -ForegroundColor Red
+            exit 1
+        }
     }
 
     # Test DNS resolution
     Write-Host "`nTesting DNS resolution to domain..." -ForegroundColor Yellow
     $dnsTestParams = @{
         ComputerName = $TargetServer
-        Credential   = $LocalAdminCred
-        ScriptBlock  = {
+        Credential = $LocalAdminCred
+        ScriptBlock = {
             param($domain)
             Resolve-DnsName -Name $domain -ErrorAction SilentlyContinue
         }
@@ -626,8 +597,8 @@ Enter choice (1-3)"
     Write-Host "`nChecking current domain status..." -ForegroundColor Yellow
     $domainCheckParams = @{
         ComputerName = $TargetServer
-        Credential   = $LocalAdminCred
-        ScriptBlock  = {
+        Credential = $LocalAdminCred
+        ScriptBlock = {
             $computerSystem = Get-WmiObject -Class Win32_ComputerSystem
             return @{
                 Domain = $computerSystem.Domain
@@ -647,8 +618,8 @@ Enter choice (1-3)"
             Write-Host "Removing computer from domain..." -ForegroundColor Yellow
             $removeDomainParams = @{
                 ComputerName = $TargetServer
-                Credential   = $LocalAdminCred
-                ScriptBlock  = {
+                Credential = $LocalAdminCred
+                ScriptBlock = {
                     $localCred = Get-Credential -Message "Enter local administrator credentials for workgroup"
                     Remove-Computer -UnjoinDomainCredential $using:DomainCred -Force -LocalCredential $localCred
                 }
@@ -658,8 +629,8 @@ Enter choice (1-3)"
             Write-Host "Computer removed from domain. A restart is required." -ForegroundColor Green
             $restartParams = @{
                 ComputerName = $TargetServer
-                Credential   = $LocalAdminCred
-                ScriptBlock  = { Restart-Computer -Force }
+                Credential = $LocalAdminCred
+                ScriptBlock = { Restart-Computer -Force }
             }
             Invoke-Command @restartParams
             
@@ -672,11 +643,11 @@ Enter choice (1-3)"
     }
 
     # Rename computer with verification (only using safe methods)
-    Write-Host "`nRenaming computer to $NewDCName..." -ForegroundColor Yellow
+    Write-Host "`nRenaming computer to $NewComputerName..." -ForegroundColor Yellow
     $renameParams = @{
         ComputerName = $TargetServer
-        Credential   = $LocalAdminCred
-        ScriptBlock  = {
+        Credential = $LocalAdminCred
+        ScriptBlock = {
             param($name)
             try {
                 # Get current computer name
@@ -706,12 +677,12 @@ Enter choice (1-3)"
                 }
             }
         }
-        ArgumentList = $NewDCName
+        ArgumentList = $NewComputerName
     }
     
     $renameResult = Invoke-Command @renameParams
     if (-not $renameResult.Success) {
-        Write-Error "Failed to rename the computer to $NewDCName."
+        Write-Error "Failed to rename the computer to $NewComputerName."
         exit 1
     }
 
@@ -721,8 +692,8 @@ Enter choice (1-3)"
         Write-Host "`nRestarting server to apply computer name change..." -ForegroundColor Yellow
         $restartParams = @{
             ComputerName = $TargetServer
-            Credential   = $LocalAdminCred
-            ScriptBlock  = { Restart-Computer -Force }
+            Credential = $LocalAdminCred
+            ScriptBlock = { Restart-Computer -Force }
         }
         Invoke-Command @restartParams
         
@@ -740,8 +711,8 @@ Enter choice (1-3)"
 
     $joinParams = @{
         ComputerName = $TargetServer
-        Credential   = $LocalAdminCred
-        ScriptBlock  = {
+        Credential = $LocalAdminCred
+        ScriptBlock = {
             param($domainName, $credential)
             Add-Computer -DomainName $domainName -Credential $credential -Restart -Force
         }
@@ -765,13 +736,13 @@ catch {
     
     $restoreDHCPParams = @{
         ComputerName = $TargetServer
-        Credential   = $LocalAdminCred
-        ScriptBlock  = {
+        Credential = $LocalAdminCred
+        ScriptBlock = {
             param($config)
             Set-NetIPInterface -InterfaceIndex $config.AdapterIndex -Dhcp Enabled
             Set-DnsClientServerAddress -InterfaceIndex $config.AdapterIndex -ResetServerAddresses
         }
-        ArgumentList = $netConfig
+        ArgumentList = $networkStatus
     }
     Invoke-Command @restoreDHCPParams
     

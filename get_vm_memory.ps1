@@ -1,0 +1,2 @@
+# Get running VMs with memory configuration
+Get-VM | Where-Object {$_.State -eq 'Running'} | Select-Object Name, State, @{N='StartupMemory(GB)';E={[math]::Round($_.MemoryStartup/1GB,2)}}, @{N='MinimumMemory(GB)';E={[math]::Round($_.MemoryMinimum/1GB,2)}}, @{N='MaximumMemory(GB)';E={[math]::Round($_.MemoryMaximum/1GB,2)}}, @{N='AssignedMemory(GB)';E={[math]::Round($_.MemoryAssigned/1GB,2)}}, DynamicMemoryEnabled | Format-Table -AutoSize

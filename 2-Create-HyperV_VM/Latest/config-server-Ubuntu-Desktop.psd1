@@ -1,9 +1,9 @@
 @{
-    VHDXPath             = "D:\VM\Setup\VHDX\ubuntu-24.04.1-live-server-amd64.VHDX"
+    VHDXPath             = "D:\VM\Setup\ISO\ubuntu-24.04.2-desktop-amd64.iso"
     # SwitchName           = "Realtek Gaming 2.5GbE Family Controller - Virtual Switch"
     # ParentVHDPath        = "D:\VM\Setup\VHDX\Windows_SERVER_2025_EVAL_x64FRE_en-us-May-17-2024-100GB.VHDX"
-    VMPath               = "D:\VM"
-    InstallMediaPath     = "D:\VM\Setup\ISO\ubuntu-24.04-live-server-amd64.iso"
+    VMPath               = "E:\VM"
+    InstallMediaPath     = "D:\VM\Setup\ISO\ubuntu-24.04.2-desktop-amd64.iso"
     MemoryStartupBytes   = "4GB"
     MemoryMinimumBytes   = "4GB"
     MemoryMaximumBytes   = "16GB"

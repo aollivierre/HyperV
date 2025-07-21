@@ -1,0 +1,6 @@
+"VMName","IPAddress","AdapterName","Status","Error"
+"070 - Lab-VSCode04 - Without WSL_20240915_164141","198.18.1.10","Ethernet 4","Success",
+"073 - ABC Lab - DC1 - Without WSL_20241111_083935","198.18.1.11","Ethernet 2","Success",
+"077 - ABC Lab - EHJ - NotSynced - Win 11 Client","198.18.1.12","Ethernet 2","Success",
+"079 - MGMT 001 - PS - WAC - SM - RSAT - Desktop Exp","198.18.1.13","Ethernet 2","Success",
+"084 - ABC Lab - RD Gateway 03 - Server Desktop","198.18.1.14","Ethernet 2","Success",
