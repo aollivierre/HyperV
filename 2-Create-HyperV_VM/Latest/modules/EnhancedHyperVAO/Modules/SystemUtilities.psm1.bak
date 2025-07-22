@@ -1,0 +1,94 @@
+# SystemUtilities.psm1
+# System initialization and utility functions
+
+function Initialize-HyperVServices {
+    [CmdletBinding()]
+    param ()
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Initialize-HyperVServices function" -Level "INFO"
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Checking for Hyper-V services" -Level "INFO"
+            if (Get-Service -DisplayName *hyper*) {
+                Write-EnhancedLog -Message "Starting Hyper-V services: vmcompute and vmms" -Level "INFO"
+                Start-Service -Name vmcompute -ErrorAction SilentlyContinue
+                Start-Service -Name vmms -ErrorAction SilentlyContinue
+                Write-EnhancedLog -Message "Hyper-V services started" -Level "INFO" -ForegroundColor ([ConsoleColor]::Green)
+            } else {
+                Write-EnhancedLog -Message "No Hyper-V services found" -Level "WARNING"
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while starting Hyper-V services: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Initialize-HyperVServices function" -Level "INFO"
+    }
+}
+
+function Parse-Size {
+    <#
+    .SYNOPSIS
+    Parses a size string and converts it to bytes.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Size
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Parse-Size function" -Level "INFO"
+        Log-Params -Params @{ Size = $Size }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Parsing size string: $Size" -Level "INFO"
+            switch -regex ($Size) {
+                '^(\d+)\s*KB$' {
+                    $result = [int64]$matches[1] * 1KB
+                    Write-EnhancedLog -Message "Parsed size: $Size to $result bytes" -Level "INFO"
+                    return $result
+                }
+                '^(\d+)\s*MB$' {
+                    $result = [int64]$matches[1] * 1MB
+                    Write-EnhancedLog -Message "Parsed size: $Size to $result bytes" -Level "INFO"
+                    return $result
+                }
+                '^(\d+)\s*GB$' {
+                    $result = [int64]$matches[1] * 1GB
+                    Write-EnhancedLog -Message "Parsed size: $Size to $result bytes" -Level "INFO"
+                    return $result
+                }
+                '^(\d+)\s*TB$' {
+                    $result = [int64]$matches[1] * 1TB
+                    Write-EnhancedLog -Message "Parsed size: $Size to $result bytes" -Level "INFO"
+                    return $result
+                }
+                default {
+                    Write-EnhancedLog -Message "Invalid size format: $Size" -Level "ERROR"
+                    throw "Invalid size format: $Size"
+                }
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while parsing size: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Parse-Size function" -Level "INFO"
+    }
+}
+
+# Export all functions
+Export-ModuleMember -Function @(
+    'Initialize-HyperVServices',
+    'Parse-Size'
+)

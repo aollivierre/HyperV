@@ -1,0 +1,146 @@
+# StorageManagement.psm1
+# Disk and storage-related operations
+
+function Dismount-VHDX {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VHDXPath
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Dismount-VHDX function" -Level "INFO"
+        Log-Params -Params @{ VHDXPath = $VHDXPath }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Validating if the VHDX is mounted: $VHDXPath" -Level "INFO"
+            $isMounted = Validate-VHDMount -VHDXPath $VHDXPath
+            Write-EnhancedLog -Message "Validation result: VHDX is mounted = $isMounted" -Level "INFO"
+
+            if ($isMounted) {
+                Write-EnhancedLog -Message "Checking for dependent VMs using the VHDX: $VHDXPath" -Level "INFO"
+                $dependentVMs = Get-DependentVMs -VHDXPath $VHDXPath
+                $runningVMs = $dependentVMs | Where-Object { $_.State -eq 'Running' }
+                
+                if ($runningVMs.Count -gt 0) {
+                    Write-EnhancedLog -Message "Found running VMs using the VHDX. Skipping dismount." -Level "WARNING"
+                    foreach ($vm in $runningVMs) {
+                        Write-EnhancedLog -Message "Running dependent VM: $($vm.Name)" -Level "WARNING"
+                    }
+                    return
+                }
+
+                Write-EnhancedLog -Message "No running VMs found using the VHDX. Proceeding with dismount." -Level "INFO"
+                Dismount-VHD -Path $VHDXPath -ErrorAction Stop
+                Write-EnhancedLog -Message "VHDX dismounted successfully." -Level "INFO"
+            } else {
+                Write-EnhancedLog -Message "$VHDXPath is already dismounted or not mounted." -Level "INFO"
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while dismounting the VHDX: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Dismount-VHDX function" -Level "INFO"
+    }
+}
+
+function Expand-CompressedISO {
+    <#
+    .SYNOPSIS
+    Extracts a compressed ISO file using 7-Zip.
+
+    .DESCRIPTION
+    This function extracts compressed ISO files (like .bz2) using 7-Zip.
+    It checks if the extracted file already exists and handles directory creation.
+
+    .PARAMETER CompressedPath
+    Path to the compressed ISO file.
+
+    .PARAMETER SevenZipPath
+    Path to the 7-Zip executable.
+
+    .EXAMPLE
+    $extractedPath = Expand-CompressedISO -CompressedPath "C:\ISOs\opnsense.iso.bz2" -SevenZipPath "C:\Program Files\7-Zip\7z.exe"
+
+    .OUTPUTS
+    String. Returns the path to the extracted ISO file.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$CompressedPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SevenZipPath
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Expand-CompressedISO function" -Level "INFO"
+        Log-Params -Params @{ CompressedPath = $CompressedPath; SevenZipPath = $SevenZipPath }
+    }
+
+    Process {
+        try {
+            $extractedIsoPath = $CompressedPath -replace '\.bz2$', ''
+            
+            # Check if the extracted ISO already exists
+            if (-not (Test-Path -Path $extractedIsoPath)) {
+                Write-EnhancedLog -Message "Extracting compressed ISO..." -Level "INFO"
+                
+                # Verify 7-Zip exists
+                if (-not (Test-Path -Path $SevenZipPath)) {
+                    throw "7-Zip executable not found at: $SevenZipPath"
+                }
+                
+                $extractDir = Split-Path -Path $extractedIsoPath -Parent
+                
+                # Make sure the target directory exists
+                if (-not (Test-Path -Path $extractDir)) {
+                    New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
+                    Write-EnhancedLog -Message "Created directory: $extractDir" -Level "INFO"
+                }
+                
+                # Extract using 7-Zip with correct parameters
+                $extractParams = @(
+                    "e", 
+                    "`"$CompressedPath`"", 
+                    "-o`"$extractDir`"", 
+                    "-y"
+                )
+                
+                Write-EnhancedLog -Message "Running 7-Zip extraction: $SevenZipPath $extractParams" -Level "INFO"
+                $process = Start-Process -FilePath $SevenZipPath -ArgumentList $extractParams -Wait -NoNewWindow -PassThru
+                
+                if ($process.ExitCode -eq 0 -and (Test-Path -Path $extractedIsoPath)) {
+                    Write-EnhancedLog -Message "Successfully extracted ISO to $extractedIsoPath" -Level "INFO"
+                } else {
+                    throw "Failed to extract ISO file. Exit code: $($process.ExitCode)"
+                }
+            } else {
+                Write-EnhancedLog -Message "Using existing extracted ISO: $extractedIsoPath" -Level "INFO"
+            }
+
+            return $extractedIsoPath
+        }
+        catch {
+            Write-EnhancedLog -Message "Error extracting ISO: $_" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+            throw
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Expand-CompressedISO function" -Level "INFO"
+    }
+}
+
+# Export all functions
+Export-ModuleMember -Function @(
+    'Dismount-VHDX',
+    'Expand-CompressedISO'
+)

@@ -1,0 +1,172 @@
+# VMValidation.psm1
+# Contains all validation functions
+
+function Validate-VMExists {
+    <#
+    .SYNOPSIS
+    Validates if a VM with the specified name exists.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Validate-VMExists function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Checking existence of VM: $VMName" -Level "INFO"
+            $vm = Get-VM -Name $VMName -ErrorAction Stop
+            Write-EnhancedLog -Message "VM $VMName exists." -Level "INFO" -ForegroundColor ([ConsoleColor]::Green)
+            return $true
+        } catch {
+            Write-EnhancedLog -Message "VM $VMName does not exist. $($_.Exception.Message)" -Level "ERROR" -ForegroundColor ([ConsoleColor]::Red)
+            Handle-Error -ErrorRecord $_
+            return $false
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Validate-VMExists function" -Level "INFO"
+    }
+}
+
+function Validate-VMStarted {
+    <#
+    .SYNOPSIS
+    Validates if the specified VM is started (running).
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Validate-VMStarted function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Checking state of VM: $VMName" -Level "INFO"
+            $vm = Get-VM -Name $VMName -ErrorAction Stop
+
+            if ($vm.State -eq 'Running') {
+                Write-EnhancedLog -Message "VM $VMName is running." -Level "INFO"
+                return $true
+            }
+            else {
+                Write-EnhancedLog -Message "VM $VMName is not running." -Level "WARNING"
+                return $false
+            }
+        }
+        catch {
+            Write-EnhancedLog -Message "Failed to check the state of VM $VMName. $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+            throw $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Validate-VMStarted function" -Level "INFO"
+    }
+}
+
+function Validate-ISOAdded {
+    <#
+    .SYNOPSIS
+    Validates if the specified ISO file is added to the VM.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$InstallMediaPath
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Validate-ISOAdded function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName; InstallMediaPath = $InstallMediaPath }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Retrieving DVD drive information for VM: $VMName" -Level "INFO"
+            $dvdDrive = Get-VMDvdDrive -VMName $VMName -ErrorAction SilentlyContinue
+
+            if ($dvdDrive -and ($dvdDrive.Path -eq $InstallMediaPath)) {
+                Write-EnhancedLog -Message "ISO is correctly added to VM: $VMName" -Level "INFO" -ForegroundColor Green
+                return $true
+            } else {
+                Write-EnhancedLog -Message "ISO is not added to VM: $VMName" -Level "WARNING" -ForegroundColor Red
+                return $false
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while validating ISO addition: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+            return $false
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Validate-ISOAdded function" -Level "INFO"
+    }
+}
+
+function Validate-VHDMount {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VHDXPath
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Validate-VHDMount function" -Level "INFO"
+        Log-Params -Params @{ VHDXPath = $VHDXPath }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Checking if the VHDX is mounted: $VHDXPath" -Level "INFO"
+            $vhd = Get-VHD -Path $VHDXPath -ErrorAction SilentlyContinue
+            
+            if ($null -eq $vhd) {
+                Write-EnhancedLog -Message "Get-VHD did not return any information for the path: $VHDXPath" -Level "INFO" -ForegroundColor Red
+                return $false
+            }
+
+            Write-EnhancedLog -Message "Get-VHD output: $($vhd | Format-List | Out-String)" -Level "DEBUG"
+
+            if ($vhd.Attached) {
+                Write-EnhancedLog -Message "VHDX is mounted: $VHDXPath" -Level "INFO" -ForegroundColor Green
+                return $true
+            } else {
+                Write-EnhancedLog -Message "VHDX is not mounted: $VHDXPath" -Level "INFO" -ForegroundColor Red
+                return $false
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while validating VHD mount status: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+            return $false
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Validate-VHDMount function" -Level "INFO"
+    }
+}
+
+# Export all functions
+Export-ModuleMember -Function @(
+    'Validate-VMExists',
+    'Validate-VMStarted',
+    'Validate-ISOAdded',
+    'Validate-VHDMount'
+)

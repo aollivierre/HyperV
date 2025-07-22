@@ -1,0 +1,128 @@
+# VMOperations.psm1
+# Handles VM runtime operations
+
+function Start-VMEnhanced {
+    <#
+    .SYNOPSIS
+    Starts the specified VM if it exists and is not already running.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Start-VMEnhanced function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Validating if VM $VMName exists" -Level "INFO"
+            if (-not (Validate-VMExists -VMName $VMName)) {
+                Write-EnhancedLog -Message "VM $VMName does not exist. Exiting function." -Level "ERROR" -ForegroundColor ([ConsoleColor]::Red)
+                return
+            }
+
+            Write-EnhancedLog -Message "Checking if VM $VMName is already running" -Level "INFO"
+            if (Validate-VMStarted -VMName $VMName) {
+                Write-EnhancedLog -Message "VM $VMName is already running." -Level "INFO" -ForegroundColor ([ConsoleColor]::Yellow)
+            } else {
+                Write-EnhancedLog -Message "Starting VM $VMName" -Level "INFO"
+                Start-VM -Name $VMName -ErrorAction Stop
+                Write-EnhancedLog -Message "VM $VMName has been started successfully." -Level "INFO" -ForegroundColor ([ConsoleColor]::Green)
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while starting the VM $VMName. $($_.Exception.Message)" -Level "ERROR" -ForegroundColor ([ConsoleColor]::Red)
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Start-VMEnhanced function" -Level "INFO"
+    }
+}
+
+function Connect-VMConsole {
+    <#
+    .SYNOPSIS
+    Connects to the console of the specified VM.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ServerName = "localhost",
+
+        [Parameter(Mandatory = $false)]
+        [int]$Count = 1
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Connect-VMConsole function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName; ServerName = $ServerName; Count = $Count }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Validating if VM $VMName exists" -Level "INFO"
+            if (-not (Validate-VMExists -VMName $VMName)) {
+                Write-EnhancedLog -Message "VM $VMName does not exist. Exiting function." -Level "ERROR"
+                return
+            }
+
+            Write-EnhancedLog -Message "Checking if VM $VMName is running" -Level "INFO"
+            if (-not (Validate-VMStarted -VMName $VMName)) {
+                Write-EnhancedLog -Message "VM $VMName is not running. Cannot connect to console." -Level "ERROR"
+                return
+            }
+
+            $vmConnectArgs = "$ServerName `"$VMName`""
+            if ($Count -gt 1) {
+                $vmConnectArgs += " -C $Count"
+            }
+
+            Write-EnhancedLog -Message "VMConnect arguments: $vmConnectArgs" -Level "DEBUG"
+            Start-Process -FilePath "vmconnect.exe" -ArgumentList $vmConnectArgs -ErrorAction Stop
+            Write-EnhancedLog -Message "VMConnect launched for VM $VMName on $ServerName with count $Count." -Level "INFO"
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while launching VMConnect for VM $VMName. $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Connect-VMConsole function" -Level "INFO"
+    }
+}
+
+function Shutdown-DependentVMs {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VHDXPath
+    )
+
+    Process {
+        try {
+            $dependentVMs = Get-DependentVMs -VHDXPath $VHDXPath
+            foreach ($vm in $dependentVMs) {
+                Write-EnhancedLog -Message "Shutting down VM: $($vm.Name)" -Level "INFO"
+                Stop-VM -Name $vm.Name -Force -ErrorAction Stop
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while shutting down dependent VMs: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+}
+
+# Export all functions
+Export-ModuleMember -Function @(
+    'Start-VMEnhanced',
+    'Connect-VMConsole',
+    'Shutdown-DependentVMs'
+)

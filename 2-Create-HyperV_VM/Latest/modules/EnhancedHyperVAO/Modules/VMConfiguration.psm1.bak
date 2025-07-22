@@ -1,0 +1,404 @@
+# VMConfiguration.psm1
+# Contains all VM configuration-related functions
+
+function ConfigureVM {
+    <#
+    .SYNOPSIS
+    Configures the specified VM with the given processor count and memory settings.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $true)]
+        [int]$ProcessorCount
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Configure-VM function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName; ProcessorCount = $ProcessorCount }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Configuring VM processor for VM: $VMName with $ProcessorCount processors" -Level "INFO"
+            Set-VMProcessor -VMName $VMName -ExposeVirtualizationExtensions $true -Count $ProcessorCount
+
+            Write-EnhancedLog -Message "Configuring memory for VM: $VMName" -Level "INFO"
+            Set-VMMemory -VMName $VMName
+
+            Write-EnhancedLog -Message "VM $VMName configured" -Level "INFO"
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while configuring VM $VMName $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Configure-VM function" -Level "INFO"
+    }
+}
+
+function ConfigureVMBoot {
+    <#
+    .SYNOPSIS
+    Configures the boot order of the specified VM. Can configure boot from either DVD drive or differencing disk.
+
+    .DESCRIPTION
+    Configures the boot settings for a VM. If DifferencingDiskPath is provided, sets the VM to boot from that disk.
+    Otherwise, configures the VM to boot from DVD drive.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$DifferencingDiskPath
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Configure-VMBoot function" -Level "INFO"
+        $logParams = @{
+            VMName = $VMName
+        }
+        if ($DifferencingDiskPath) {
+            $logParams['DifferencingDiskPath'] = $DifferencingDiskPath
+        }
+        Log-Params -Params $logParams
+    }
+
+    Process {
+        try {
+            if ($DifferencingDiskPath) {
+                # Differencing disk boot configuration
+                Write-EnhancedLog -Message "Retrieving hard disk drive for VM: $VMName with path: $DifferencingDiskPath" -Level "INFO"
+                $VHD = Get-VMHardDiskDrive -VMName $VMName | Where-Object { $_.Path -eq $DifferencingDiskPath }
+
+                if ($null -eq $VHD) {
+                    Write-EnhancedLog -Message "No hard disk drive found for VM: $VMName with the specified path: $DifferencingDiskPath" -Level "ERROR"
+                    throw "Hard disk drive not found."
+                }
+
+                Write-EnhancedLog -Message "Setting VM firmware for VM: $VMName to boot from the specified disk" -Level "INFO"
+                Set-VMFirmware -VMName $VMName -FirstBootDevice $VHD
+            }
+            else {
+                # DVD drive boot configuration
+                Write-EnhancedLog -Message "Retrieving DVD drive for VM: $VMName" -Level "INFO"
+                $DVDDrive = Get-VMDvdDrive -VMName $VMName
+
+                if ($null -eq $DVDDrive) {
+                    Write-EnhancedLog -Message "No DVD drive found for VM: $VMName" -Level "ERROR"
+                    throw "DVD drive not found."
+                }
+
+                Write-EnhancedLog -Message "Setting VM firmware for VM: $VMName to boot from DVD" -Level "INFO"
+                Set-VMFirmware -VMName $VMName -FirstBootDevice $DVDDrive
+            }
+
+            Write-EnhancedLog -Message "VM boot configured for $VMName" -Level "INFO"
+        }
+        catch {
+            Write-EnhancedLog -Message "An error occurred while configuring VM boot for $VMName $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Configure-VMBoot function" -Level "INFO"
+    }
+}
+
+function Add-DVDDriveToVM {
+    <#
+    .SYNOPSIS
+    Adds a DVD drive with the specified ISO to the VM and validates the addition.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$InstallMediaPath
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Add-DVDDriveToVM function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName; InstallMediaPath = $InstallMediaPath }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Validating if the ISO is already added to VM: $VMName" -Level "INFO"
+            if (Validate-ISOAdded -VMName $VMName -InstallMediaPath $InstallMediaPath) {
+                Write-EnhancedLog -Message "ISO is already added to VM: $VMName" -Level "INFO"
+                return
+            }
+
+            Write-EnhancedLog -Message "Adding SCSI controller to VM: $VMName" -Level "INFO"
+            Add-VMScsiController -VMName $VMName -ErrorAction Stop
+
+            Write-EnhancedLog -Message "Adding DVD drive with ISO to VM: $VMName" -Level "INFO"
+            Add-VMDvdDrive -VMName $VMName -Path $InstallMediaPath -ErrorAction Stop
+
+            Write-EnhancedLog -Message "DVD drive with ISO added to VM: $VMName" -Level "INFO"
+
+            Write-EnhancedLog -Message "Validating the ISO addition for VM: $VMName" -Level "INFO"
+            if (-not (Validate-ISOAdded -VMName $VMName -InstallMediaPath $InstallMediaPath)) {
+                Write-EnhancedLog -Message "Failed to validate the ISO addition for VM: $VMName" -Level "ERROR"
+                throw "ISO validation failed."
+            }
+        }
+        catch {
+            Write-EnhancedLog -Message "An error occurred while adding DVD drive to VM: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Add-DVDDriveToVM function" -Level "INFO"
+    }
+}
+
+function EnableVMTPM {
+    <#
+    .SYNOPSIS
+    Enables TPM for the specified VM.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Enable-VMTPM function" -Level "INFO"
+        Log-Params -Params @{ VMName = $VMName }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Retrieving HGS Guardian" -Level "INFO"
+            $owner = Get-HgsGuardian -Name "UntrustedGuardian"
+
+            Write-EnhancedLog -Message "Creating new HGS Key Protector" -Level "INFO"
+            $kp = New-HgsKeyProtector -Owner $owner -AllowUntrustedRoot
+
+            Write-EnhancedLog -Message "Setting VM Key Protector for VM: $VMName" -Level "INFO"
+            Set-VMKeyProtector -VMName $VMName -KeyProtector $kp.RawData
+
+            Write-EnhancedLog -Message "Enabling TPM for VM: $VMName" -Level "INFO"
+            Enable-VMTPM -VMName $VMName
+
+            Write-EnhancedLog -Message "TPM enabled for $VMName" -Level "INFO"
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while enabling TPM for VM $VMName $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Enable-VMTPM function" -Level "INFO"
+    }
+}
+
+function EnsureUntrustedGuardianExists {
+    <#
+    .SYNOPSIS
+    Ensures that an untrusted guardian exists. If not, creates one.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$GuardianName = 'UntrustedGuardian'
+    )
+
+    Begin {
+        Write-EnhancedLog -Message "Starting Ensure-UntrustedGuardianExists function" -Level "INFO"
+        Log-Params -Params @{ GuardianName = $GuardianName }
+    }
+
+    Process {
+        try {
+            Write-EnhancedLog -Message "Checking for the existence of the guardian: $GuardianName" -Level "INFO"
+            $guardian = Get-HgsGuardian -Name $GuardianName -ErrorAction SilentlyContinue
+
+            if ($null -eq $guardian) {
+                Write-EnhancedLog -Message "Guardian $GuardianName not found. Creating..." -Level "WARNING"
+                New-HgsGuardian -Name $GuardianName -GenerateCertificates
+                Write-EnhancedLog -Message "Guardian $GuardianName created successfully" -Level "INFO" -ForegroundColor ([ConsoleColor]::Green)
+            } else {
+                Write-EnhancedLog -Message "Guardian $GuardianName already exists" -Level "INFO"
+            }
+        } catch {
+            Write-EnhancedLog -Message "An error occurred while checking or creating the guardian: $($_.Exception.Message)" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Ensure-UntrustedGuardianExists function" -Level "INFO"
+    }
+}
+
+function Get-AvailableVirtualSwitch {
+    <#
+    .SYNOPSIS
+    Gets an available virtual switch based on purpose and preference.
+
+    .DESCRIPTION
+    This function retrieves available virtual switches and allows selection based on purpose.
+    It can automatically create switches if none exist and provides an interactive menu for selection.
+
+    .PARAMETER SwitchPurpose
+    Description of the switch purpose (e.g., "WAN (External)", "LAN (Internal)").
+
+    .PARAMETER PreferredType
+    Preferred switch type (External, Internal, Private). If specified, will prefer this type.
+
+    .EXAMPLE
+    $switch = Get-AvailableVirtualSwitch -SwitchPurpose "WAN (External)"
+
+    .EXAMPLE
+    $switch = Get-AvailableVirtualSwitch -SwitchPurpose "LAN (Internal)" -PreferredType "Private"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]$SwitchPurpose = "Default",
+
+        [Parameter()]
+        [ValidateSet("External", "Internal", "Private")]
+        [string]$PreferredType
+    )
+    
+    Begin {
+        Write-EnhancedLog -Message "Starting Get-AvailableVirtualSwitch function" -Level "INFO"
+        Log-Params -Params @{ SwitchPurpose = $SwitchPurpose; PreferredType = $PreferredType }
+    }
+
+    Process {
+        try {
+            # Get all available virtual switches
+            $switches = Get-VMSwitch -ErrorAction Stop
+            
+            if (-not $switches) {
+                Write-EnhancedLog -Message "No virtual switches found. Creating default External switch..." -Level "WARNING"
+                
+                # Get the first available network adapter
+                $netAdapter = Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 1
+                
+                if ($netAdapter) {
+                    # Create new external switch
+                    $newSwitch = New-VMSwitch -Name "Default External Switch" -NetAdapterName $netAdapter.Name -AllowManagementOS $true
+                    Write-EnhancedLog -Message "Created new external switch: $($newSwitch.Name)" -Level "INFO"
+                    return $newSwitch.Name
+                } else {
+                    throw "No network adapters available to create virtual switch"
+                }
+            }
+
+            # If PreferredType is specified, try to find switches of that type first
+            if ($PreferredType) {
+                $preferredSwitches = $switches | Where-Object { $_.SwitchType -eq $PreferredType }
+                
+                if ($preferredSwitches) {
+                    if ($preferredSwitches.Count -eq 1) {
+                        Write-EnhancedLog -Message "Using the only available $PreferredType switch: $($preferredSwitches[0].Name)" -Level "INFO"
+                        return $preferredSwitches[0].Name
+                    }
+                    # If multiple preferred switches, use the selection logic below with filtered list
+                    $switches = $preferredSwitches
+                }
+                else {
+                    # No switches of preferred type exist, ask user if they want to create one
+                    if ($PreferredType -eq "Private") {
+                        Write-Host "`nNo $PreferredType switches found for $SwitchPurpose." -ForegroundColor Yellow
+                        Write-Host "Available switches of other types:" -ForegroundColor Cyan
+                        
+                        for ($i = 0; $i -lt $switches.Count; $i++) {
+                            Write-Host "[$i] $($switches[$i].Name) (Type: $($switches[$i].SwitchType))"
+                        }
+                        
+                        Write-Host "[C] Create new $PreferredType switch" -ForegroundColor Green
+                        
+                        do {
+                            $choice = Read-Host "`nSelect an option [0-$($switches.Count - 1)] or [C]reate new"
+                        } while ($choice -notmatch '^([0-9]+|[Cc])$' -or ($choice -match '^\d+$' -and [int]$choice -ge $switches.Count))
+                        
+                        if ($choice -match '^[Cc]$') {
+                            # User chose to create new switch
+                            $cleanPurpose = $SwitchPurpose -replace '[^\w\s-]', '' -replace '\s+', '-'
+                            $newSwitchName = "HyperV-$cleanPurpose-Private"
+                            try {
+                                Write-EnhancedLog -Message "Creating new private switch: $newSwitchName" -Level "INFO"
+                                $newSwitch = New-VMSwitch -Name $newSwitchName -SwitchType Private
+                                Write-EnhancedLog -Message "Successfully created private switch: $newSwitchName" -Level "INFO"
+                                return $newSwitch.Name
+                            }
+                            catch {
+                                Write-EnhancedLog -Message "Failed to create private switch: $_" -Level "ERROR"
+                                throw
+                            }
+                        } else {
+                            # User chose existing switch
+                            return $switches[[int]$choice].Name
+                        }
+                    } else {
+                        # For non-Private types, just show available switches
+                        Write-Host "`nNo $PreferredType switches found. Available switches:" -ForegroundColor Yellow
+                        for ($i = 0; $i -lt $switches.Count; $i++) {
+                            Write-Host "[$i] $($switches[$i].Name) (Type: $($switches[$i].SwitchType))"
+                        }
+                        
+                        do {
+                            $selection = Read-Host "`nSelect switch for $SwitchPurpose [0-$($switches.Count - 1)]"
+                        } while ($selection -notmatch '^\d+$' -or [int]$selection -lt 0 -or [int]$selection -ge $switches.Count)
+                        
+                        return $switches[[int]$selection].Name
+                    }
+                }
+            }
+            
+            # If there's only one switch, use it
+            if ($switches.Count -eq 1) {
+                Write-EnhancedLog -Message "Using the only available switch: $($switches[0].Name)" -Level "INFO"
+                return $switches[0].Name
+            }
+            
+            # If multiple switches exist, show selection menu
+            Write-Host "`nAvailable Virtual Switches ($SwitchPurpose):" -ForegroundColor Cyan
+            for ($i = 0; $i -lt $switches.Count; $i++) {
+                Write-Host "[$i] $($switches[$i].Name) (Type: $($switches[$i].SwitchType))"
+            }
+            
+            do {
+                $selection = Read-Host "`nSelect virtual switch for $SwitchPurpose [0-$($switches.Count - 1)]"
+            } while ($selection -notmatch '^\d+$' -or [int]$selection -lt 0 -or [int]$selection -ge $switches.Count)
+            
+            return $switches[[int]$selection].Name
+        }
+        catch {
+            Write-EnhancedLog -Message "Error getting virtual switch: $_" -Level "ERROR"
+            Handle-Error -ErrorRecord $_
+            throw
+        }
+    }
+
+    End {
+        Write-EnhancedLog -Message "Exiting Get-AvailableVirtualSwitch function" -Level "INFO"
+    }
+}
+
+# Export all functions
+Export-ModuleMember -Function @(
+    'ConfigureVM',
+    'ConfigureVMBoot',
+    'Add-DVDDriveToVM',
+    'EnableVMTPM',
+    'EnsureUntrustedGuardianExists',
+    'Get-AvailableVirtualSwitch'
+)
