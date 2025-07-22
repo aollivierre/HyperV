@@ -207,10 +207,229 @@ function CreateVMFolder {
     }
 }
 
+function Create-EnhancedVM {
+    <#
+    .SYNOPSIS
+        Creates an enhanced Hyper-V VM with advanced configuration options.
+    
+    .DESCRIPTION
+        Creates a new VM with support for differencing disks, multiple network adapters,
+        TPM, dynamic memory, and other advanced features.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$VMFullPath,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$MemoryStartupBytes,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$MemoryMinimumBytes,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$MemoryMaximumBytes,
+        
+        [Parameter(Mandatory = $true)]
+        [int]$ProcessorCount,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$ExternalSwitchName,
+        
+        [Parameter()]
+        [string]$InternalSwitchName,
+        
+        [Parameter()]
+        [string]$ExternalMacAddress,
+        
+        [Parameter()]
+        [string]$InternalMacAddress,
+        
+        [Parameter()]
+        [string]$InstallMediaPath,
+        
+        [Parameter()]
+        [int]$Generation = 2,
+        
+        [Parameter()]
+        [string]$VMType = 'Standard',
+        
+        [Parameter()]
+        [string]$VHDXPath,
+        
+        [Parameter()]
+        [uint64]$DefaultVHDSize = 127GB,
+        
+        [Parameter()]
+        [bool]$EnableVirtualizationExtensions = $false,
+        
+        [Parameter()]
+        [bool]$EnableDynamicMemory = $true,
+        
+        [Parameter()]
+        [int]$MemoryBuffer = 20,
+        
+        [Parameter()]
+        [int]$MemoryWeight = 100,
+        
+        [Parameter()]
+        [int]$MemoryPriority = 80,
+        
+        [Parameter()]
+        [bool]$IncludeTPM = $true
+    )
+    
+    Begin {
+        Write-Host "Starting Create-EnhancedVM function"
+        
+        # Parse memory values
+        $StartupBytes = [int64](Invoke-Expression $MemoryStartupBytes.Replace('GB', '*1GB').Replace('MB', '*1MB'))
+        $MinimumBytes = [int64](Invoke-Expression $MemoryMinimumBytes.Replace('GB', '*1GB').Replace('MB', '*1MB'))
+        $MaximumBytes = [int64](Invoke-Expression $MemoryMaximumBytes.Replace('GB', '*1GB').Replace('MB', '*1MB'))
+    }
+    
+    Process {
+        try {
+            # Initialize HyperV services
+            Initialize-HyperVServices
+            
+            # Ensure guardian exists if TPM is required
+            if ($IncludeTPM) {
+                EnsureUntrustedGuardianExists
+            }
+            
+            # Create VM folder
+            CreateVMFolder -VMPath (Split-Path $VMFullPath -Parent) -VMName $VMName
+            
+            # Determine if using differencing disk
+            $UsesDifferencing = ($VMType -eq 'Differencing' -and $VHDXPath)
+            
+            if ($UsesDifferencing) {
+                Write-Host "Creating VM with differencing disk"
+                
+                # Create differencing disk
+                $vmDestinationPath = Join-Path -Path $VMFullPath -ChildPath "$VMName.vhdx"
+                New-DifferencingVHDX -ParentVHDPath $VHDXPath -DifferencingVHDPath $vmDestinationPath
+                
+                # Create VM with differencing disk
+                $vmParams = @{
+                    VMName             = $VMName
+                    VMFullPath         = $VMFullPath
+                    SwitchName         = $ExternalSwitchName
+                    MemoryStartupBytes = $StartupBytes
+                    MemoryMinimumBytes = $MinimumBytes
+                    MemoryMaximumBytes = $MaximumBytes
+                    Generation         = $Generation
+                    ParentVHDPath      = $VHDXPath
+                    VHDPath            = $vmDestinationPath
+                    UseDifferencing    = $true
+                }
+                
+                $vmCreated = New-CustomVMWithDifferencingDisk @vmParams
+                
+                # Configure boot from differencing disk
+                ConfigureVMBoot -VMName $VMName -DifferencingDiskPath $vmDestinationPath
+            }
+            else {
+                Write-Host "Creating VM with new VHD"
+                
+                # Create VM without VHD first
+                $newVMParams = @{
+                    Generation         = $Generation
+                    Path               = $VMFullPath
+                    Name               = $VMName
+                    MemoryStartupBytes = $StartupBytes
+                    SwitchName         = $ExternalSwitchName
+                    NoVHD              = $true
+                }
+                
+                $vm = New-VM @newVMParams
+                
+                # Configure memory
+                Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $EnableDynamicMemory `
+                    -MinimumBytes $MinimumBytes -MaximumBytes $MaximumBytes -StartupBytes $StartupBytes `
+                    -Buffer $MemoryBuffer -Priority $MemoryPriority
+                
+                # Create and attach new VHD
+                $vhdPath = Join-Path -Path $VMFullPath -ChildPath "$VMName.vhdx"
+                $newVHD = New-VHD -Path $vhdPath -SizeBytes $DefaultVHDSize -Dynamic
+                Add-VMHardDiskDrive -VMName $VMName -Path $vhdPath
+                
+                # Add DVD drive if install media provided
+                if ($InstallMediaPath) {
+                    Add-DVDDriveToVM -VMName $VMName -InstallMediaPath $InstallMediaPath
+                    ConfigureVMBoot -VMName $VMName
+                }
+            }
+            
+            # Configure VM processors
+            ConfigureVM -VMName $VMName -ProcessorCount $ProcessorCount
+            
+            # Set processor features
+            if ($EnableVirtualizationExtensions) {
+                Set-VMProcessor -VMName $VMName -ExposeVirtualizationExtensions $true
+            }
+            
+            # Configure network adapters
+            if ($ExternalMacAddress) {
+                Get-VMNetworkAdapter -VMName $VMName | Where-Object { $_.SwitchName -eq $ExternalSwitchName } | 
+                    Set-VMNetworkAdapter -StaticMacAddress $ExternalMacAddress
+            }
+            
+            # Add second network adapter if internal switch specified
+            if ($InternalSwitchName) {
+                Add-VMNetworkAdapter -VMName $VMName -Name "LAN" -SwitchName $InternalSwitchName
+                
+                if ($InternalMacAddress) {
+                    Get-VMNetworkAdapter -VMName $VMName -Name "LAN" | 
+                        Set-VMNetworkAdapter -StaticMacAddress $InternalMacAddress
+                }
+            }
+            
+            # Enable TPM if requested
+            if ($IncludeTPM) {
+                EnableVMTPM -VMName $VMName
+            }
+            
+            # Disable Secure Boot for certain configurations
+            if ($Generation -eq 2) {
+                try {
+                    Set-VMFirmware -VMName $VMName -EnableSecureBoot Off -ErrorAction SilentlyContinue
+                }
+                catch {
+                    Write-Warning "Could not disable Secure Boot: $_"
+                }
+            }
+            
+            Write-Host "VM '$VMName' created successfully"
+            
+            # Start VM if requested
+            $startVM = Read-Host "`nDo you want to start the VM now? (Y/N)"
+            if ($startVM -match '^[Yy]') {
+                Start-VM -Name $VMName
+                Write-Host "VM started successfully"
+            }
+        }
+        catch {
+            Write-Error "Failed to create VM: $_"
+            Handle-Error -ErrorRecord $_
+            throw
+        }
+    }
+    
+    End {
+        Write-Host "Exiting Create-EnhancedVM function"
+    }
+}
+
 # Export all functions
 Export-ModuleMember -Function @(
     'New-CustomVMWithDifferencingDisk',
     'New-DifferencingVHDX',
     'Show-VMCreationMenu',
-    'CreateVMFolder'
+    'CreateVMFolder',
+    'Create-EnhancedVM'
 )
