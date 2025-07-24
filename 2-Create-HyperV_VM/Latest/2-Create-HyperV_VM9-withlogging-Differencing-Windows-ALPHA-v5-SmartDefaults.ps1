@@ -643,6 +643,60 @@ function Process-SmartConfiguration {
     # Apply smart paths
     $Config = Get-SmartPaths -DriveLetter $SelectedDrive -Config $Config
     
+    # Validate critical paths exist
+    if ($Config.InstallMediaPath -and -not (Test-Path $Config.InstallMediaPath)) {
+        Write-Log -Message "ISO file not found: $($Config.InstallMediaPath)" -Level 'WARNING'
+        
+        if (-not $script:UseSmartDefaults) {
+            Write-Host "`nISO file not found at: $($Config.InstallMediaPath)" -ForegroundColor Yellow
+            $newPath = Read-Host "Enter correct ISO path (or press Enter to skip)"
+            if ($newPath) {
+                $Config.InstallMediaPath = $newPath
+            }
+        }
+        else {
+            # In non-interactive mode, try to find any ISO in common locations
+            $isoSearchPaths = @(
+                "$SelectedDrive`:\VM\ISO",
+                "$SelectedDrive`:\VM\ISOs", 
+                "$SelectedDrive`:\VM\Setup\ISO",
+                "$SelectedDrive`:\ISOs"
+            )
+            
+            foreach ($searchPath in $isoSearchPaths) {
+                if (Test-Path $searchPath) {
+                    $foundIsos = Get-ChildItem -Path $searchPath -Filter "*.iso" | Select-Object -First 1
+                    if ($foundIsos) {
+                        $Config.InstallMediaPath = $foundIsos.FullName
+                        Write-Log -Message "Auto-selected ISO: $($Config.InstallMediaPath)" -Level 'INFO'
+                        break
+                    }
+                }
+            }
+        }
+    }
+    
+    # Validate VHDX path if specified
+    if ($Config.VHDXPath -and -not (Test-Path $Config.VHDXPath)) {
+        Write-Log -Message "VHDX file not found: $($Config.VHDXPath)" -Level 'WARNING'
+        
+        if (-not $script:UseSmartDefaults) {
+            Write-Host "`nVHDX file not found at: $($Config.VHDXPath)" -ForegroundColor Yellow
+            $newPath = Read-Host "Enter correct VHDX path (or press Enter to create new disk)"
+            if ($newPath) {
+                $Config.VHDXPath = $newPath
+            }
+            else {
+                $Config.Remove('VHDXPath')
+            }
+        }
+        else {
+            # In non-interactive mode, remove the VHDX path to create a new disk
+            Write-Log -Message "VHDX not found. Will create new disk instead." -Level 'INFO'
+            $Config.Remove('VHDXPath')
+        }
+    }
+    
     # Set other smart defaults
     if (-not $Config.ContainsKey('Generation')) {
         $Config.Generation = 2  # Default to Gen 2 for modern features
@@ -846,6 +900,31 @@ try {
     
     # Create VM directory
     $VMFullPath = Join-Path $config.VMPath $VMName
+    if (Test-Path $VMFullPath) {
+        Write-Log -Message "VM directory already exists at $VMFullPath" -Level "WARNING"
+        
+        # Check if VM with this name exists
+        $existingVM = Get-VM -Name $VMName -ErrorAction SilentlyContinue
+        if ($existingVM) {
+            Write-Log -Message "VM '$VMName' already exists. Generating new name..." -Level "WARNING"
+            
+            # Keep incrementing until we find a unique name
+            $counter = 1
+            do {
+                $VMName = "$VMNamePrefix`_VM_$counter"
+                $VMFullPath = Join-Path $config.VMPath $VMName
+                $counter++
+            } while ((Test-Path $VMFullPath) -or (Get-VM -Name $VMName -ErrorAction SilentlyContinue))
+            
+            Write-Log -Message "Using unique VM name: $VMName" -Level "INFO"
+        }
+        else {
+            # Directory exists but VM doesn't - clean up the directory
+            Write-Log -Message "Cleaning up existing directory without VM..." -Level "INFO"
+            Remove-Item -Path $VMFullPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    
     if (-not (Test-Path $VMFullPath)) {
         New-Item -Path $VMFullPath -ItemType Directory -Force | Out-Null
         Write-Log -Message "Created VM directory at $VMFullPath" -Level "INFO"
