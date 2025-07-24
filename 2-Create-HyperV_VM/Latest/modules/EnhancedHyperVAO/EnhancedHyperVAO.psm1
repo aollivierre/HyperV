@@ -31,6 +31,14 @@ Process {
     
     # Load PSM1 modules from Modules directory
     $modulesDir = Join-Path -Path $PSScriptRoot -ChildPath "Modules"
+    
+    # Import SharedUtilities first so Handle-Error is available to all modules
+    $sharedUtils = Join-Path $modulesDir "SharedUtilities.psm1"
+    if (Test-Path $sharedUtils) {
+        Import-Module $sharedUtils -Force -Scope Global
+        Write-Host "Imported SharedUtilities module"
+    }
+    
     $ModuleFiles = @(Get-ChildItem -Path $modulesDir -Filter "*.psm1" -ErrorAction SilentlyContinue)
     
     Write-Host "Module files found: $($ModuleFiles.Count)"

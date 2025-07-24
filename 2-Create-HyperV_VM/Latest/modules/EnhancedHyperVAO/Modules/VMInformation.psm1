@@ -44,7 +44,14 @@ function Get-VMConfiguration {
             # Get and validate user selection
             do {
                 $selection = Read-Host "`nSelect a configuration (1-$($configFiles.Count))"
-                $validSelection = $selection -match "^[1-$($configFiles.Count)]$"
+                
+                # Validate selection is a number and within range
+                if ($selection -match '^\d+$') {
+                    $selectionNum = [int]$selection
+                    $validSelection = ($selectionNum -ge 1) -and ($selectionNum -le $configFiles.Count)
+                } else {
+                    $validSelection = $false
+                }
                 
                 if (-not $validSelection) {
                     Write-Host "Invalid selection. Please enter a number between 1 and $($configFiles.Count)" -ForegroundColor Yellow
@@ -52,7 +59,7 @@ function Get-VMConfiguration {
             } while (-not $validSelection)
 
             # Load selected configuration
-            $selectedConfig = $configFiles[$selection - 1]
+            $selectedConfig = $configFiles[$selectionNum - 1]
             $configPath = $selectedConfig.FullName
             
             $importParams = @{
