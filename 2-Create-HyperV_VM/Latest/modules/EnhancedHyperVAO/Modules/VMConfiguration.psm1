@@ -88,8 +88,9 @@ function ConfigureVMBoot {
                 $DVDDrive = Get-VMDvdDrive -VMName $VMName
 
                 if ($null -eq $DVDDrive) {
-                    Write-Error "No DVD drive found for VM: $VMName"
-                    throw "DVD drive not found."
+                    Write-Warning "No DVD drive found for VM: $VMName"
+                    Write-Warning "Skipping boot configuration. VM will boot from default device."
+                    return
                 }
 
                 Write-Host "Setting VM firmware for VM: $VMName to boot from DVD"
@@ -129,6 +130,13 @@ function Add-DVDDriveToVM {
 
     Process {
         try {
+            # First check if ISO file exists
+            if (-not (Test-Path $InstallMediaPath)) {
+                Write-Warning "ISO file not found: $InstallMediaPath"
+                Write-Warning "Skipping DVD drive addition. VM will be created without installation media."
+                return
+            }
+            
             Write-Host "Validating if the ISO is already added to VM: $VMName"
             if (Validate-ISOAdded -VMName $VMName -InstallMediaPath $InstallMediaPath) {
                 Write-Host "ISO is already added to VM: $VMName"

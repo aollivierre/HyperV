@@ -300,8 +300,10 @@ function Get-AvailableDrives {
         }
     } | Sort-Object FreeSpaceGB -Descending
     
-    Write-Log -Message "Found $($drives.Count) drives" -Level 'DEBUG'
-    return $drives
+    # Ensure we have an array for proper count
+    $driveArray = @($drives)
+    Write-Log -Message "Found $($driveArray.Count) drives" -Level 'DEBUG'
+    return $driveArray
 }
 
 function Select-BestDrive {
@@ -655,6 +657,11 @@ function Process-SmartConfiguration {
             $newPath = Read-Host "Enter correct ISO path (or press Enter to skip)"
             if ($newPath) {
                 $Config.InstallMediaPath = $newPath
+            }
+            else {
+                # User chose to skip - remove ISO path
+                $Config.Remove('InstallMediaPath')
+                Write-Log -Message "User skipped ISO path. Will create VM without ISO." -Level 'INFO'
             }
         }
         else {
