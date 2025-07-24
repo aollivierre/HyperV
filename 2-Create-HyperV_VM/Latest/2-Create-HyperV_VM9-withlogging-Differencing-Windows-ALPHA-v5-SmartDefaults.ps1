@@ -362,7 +362,7 @@ function Show-DriveSelectionMenu {
     $drives = Get-AvailableDrives
     for ($i = 0; $i -lt $drives.Count; $i++) {
         $drive = $drives[$i]
-        $meetsReq = if ($drive.FreeSpaceGB -ge $MinimumFreeSpaceGB) { "✓" } else { "✗" }
+        $meetsReq = if ($drive.FreeSpaceGB -ge $MinimumFreeSpaceGB) { "[OK]" } else { "[X]" }
         $color = if ($drive.FreeSpaceGB -ge $MinimumFreeSpaceGB) { "White" } else { "DarkGray" }
         
         Write-Host ("  [{0}] {1}: - {2:N2} GB free of {3:N2} GB ({4:N1}% free) {5}" -f 
