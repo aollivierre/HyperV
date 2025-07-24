@@ -9,7 +9,7 @@
     InstallMediaPath     = "D:\VM\Setup\ISO\Win11_24H2_English_x64_Oct16_2024.iso"
     
     # Everything else uses smart defaults:
-    ProcessorCount       = "All Cores"     # Uses all available CPU cores
+    ProcessorCount       = "All Cores"     # Uses all logical processors (including hyperthreading)
     SwitchName          = "Default Switch" # Auto-selects best available switch
     
     # Optional: Uncomment to use existing VHDX as template

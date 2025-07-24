@@ -199,7 +199,7 @@ function Get-SystemResources {
         CPUName = $cpu.Name
     }
     
-    Write-Log -Message "System Resources: $($totalCores) cores, $($totalMemoryGB)GB RAM ($($availableMemoryGB)GB available)" -Level 'INFO'
+    Write-Log -Message "System Resources: $($totalCores) cores ($($logicalProcessors) logical processors), $($totalMemoryGB)GB RAM ($($availableMemoryGB)GB available)" -Level 'INFO'
     
     return $resources
 }
@@ -217,9 +217,9 @@ function Get-ProcessorCount {
     
     if ($ProcessorValue -eq "All Cores" -or $ProcessorValue -eq "All") {
         $resources = Get-SystemResources
-        $cores = $resources.TotalCores
-        Write-Log -Message "Using all available cores: $cores" -Level 'INFO'
-        return $cores
+        $processors = $resources.LogicalProcessors
+        Write-Log -Message "Using all available logical processors: $processors" -Level 'INFO'
+        return $processors
     }
     elseif ($ProcessorValue -match '^\d+$') {
         return [int]$ProcessorValue
