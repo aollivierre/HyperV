@@ -394,14 +394,9 @@ function Create-EnhancedVM {
                 EnableVMTPM -VMName $VMName
             }
             
-            # Disable Secure Boot for certain configurations
+            # Enable Secure Boot for Generation 2 VMs
             if ($Generation -eq 2) {
-                try {
-                    Set-VMFirmware -VMName $VMName -EnableSecureBoot Off -ErrorAction SilentlyContinue
-                }
-                catch {
-                    Write-Warning "Could not disable Secure Boot: $_"
-                }
+                Enable-VMSecureBoot -VMName $VMName
             }
             
             Write-Host "VM '$VMName' created successfully"

@@ -163,7 +163,7 @@ function Add-DVDDriveToVM {
 function EnableVMTPM {
     <#
     .SYNOPSIS
-    Enables TPM and Secure Boot for the specified VM.
+    Enables TPM for the specified VM.
     #>
     [CmdletBinding()]
     param (
@@ -190,22 +190,55 @@ function EnableVMTPM {
             Enable-VMTPM -VMName $VMName
 
             Write-Host "TPM enabled for $VMName"
-            
-            # Enable Secure Boot for Generation 2 VMs
-            $vm = Get-VM -Name $VMName
-            if ($vm.Generation -eq 2) {
-                Write-Host "Enabling Secure Boot for VM: $VMName"
-                Set-VMFirmware -VMName $VMName -EnableSecureBoot On -SecureBootTemplate "MicrosoftWindows"
-                Write-Host "Secure Boot enabled for $VMName with MicrosoftWindows template"
-            }
         } catch {
-            Write-Error "An error occurred while enabling TPM and Secure Boot for VM $VMName $($_.Exception.Message)"
+            Write-Error "An error occurred while enabling TPM for VM $VMName $($_.Exception.Message)"
             Handle-Error -ErrorRecord $_
         }
     }
 
     End {
         Write-Host "Exiting Enable-VMTPM function"
+    }
+}
+
+function Enable-VMSecureBoot {
+    <#
+    .SYNOPSIS
+    Enables Secure Boot for Generation 2 VMs.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$VMName,
+        
+        [Parameter()]
+        [string]$SecureBootTemplate = "MicrosoftWindows"
+    )
+    
+    Begin {
+        Write-Host "Starting Enable-VMSecureBoot function"
+    }
+    
+    Process {
+        try {
+            $vm = Get-VM -Name $VMName
+            if ($vm.Generation -eq 2) {
+                Write-Host "Enabling Secure Boot for VM: $VMName"
+                Set-VMFirmware -VMName $VMName -EnableSecureBoot On -SecureBootTemplate $SecureBootTemplate
+                Write-Host "Secure Boot enabled for $VMName with $SecureBootTemplate template"
+            }
+            else {
+                Write-Host "Secure Boot not available for Generation 1 VM: $VMName"
+            }
+        }
+        catch {
+            Write-Error "An error occurred while enabling Secure Boot for VM $VMName $($_.Exception.Message)"
+            Handle-Error -ErrorRecord $_
+        }
+    }
+    
+    End {
+        Write-Host "Exiting Enable-VMSecureBoot function"
     }
 }
 
@@ -401,6 +434,7 @@ Export-ModuleMember -Function @(
     'ConfigureVMBoot',
     'Add-DVDDriveToVM',
     'EnableVMTPM',
+    'Enable-VMSecureBoot',
     'EnsureUntrustedGuardianExists',
     'Get-AvailableVirtualSwitch'
 )
