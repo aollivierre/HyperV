@@ -78,28 +78,41 @@ function Get-VMConfiguration {
             Write-Host "----------------------------------------" -ForegroundColor Cyan
 
             # Confirm or edit configuration
+            $confirmed = $false
             do {
                 $proceed = Read-Host "`nProceed with this configuration? (Y)es, (E)dit, or (C)ancel"
                 
                 switch -Regex ($proceed) {
                     '^[Yy]$' {
                         Write-Host "Configuration selected: $($selectedConfig.Name)"
-                        return $config
+                        $confirmed = $true
                     }
                     '^[Ee]$' {
                         Write-Host "Opening configuration for editing"
                         
-                        switch ($Editor) {
-                            'VSCode' { Start-Process code -ArgumentList $configPath -Wait }
-                            'Notepad' { Start-Process notepad -ArgumentList $configPath -Wait }
+                        try {
+                            # Try VSCode first if available
+                            $vscodePath = Get-Command code -ErrorAction SilentlyContinue
+                            if ($vscodePath) {
+                                Start-Process code -ArgumentList "`"$configPath`"" -Wait
+                            }
+                            else {
+                                # Fall back to notepad
+                                Start-Process notepad -ArgumentList "`"$configPath`"" -Wait
+                            }
+                            
+                            # Reload configuration after editing
+                            $config = Import-PowerShellDataFile @importParams
+                            
+                            Write-Host "`nUpdated Configuration:" -ForegroundColor Cyan
+                            Write-Host "----------------------------------------" -ForegroundColor Cyan
+                            $config.GetEnumerator() | Sort-Object Key | ForEach-Object {
+                                Write-Host ("{0,-20} = {1}" -f $_.Key, $_.Value)
+                            }
+                            Write-Host "----------------------------------------" -ForegroundColor Cyan
                         }
-                        
-                        # Reload configuration after editing
-                        $config = Import-PowerShellDataFile @importParams
-                        
-                        Write-Host "`nUpdated Configuration:" -ForegroundColor Cyan
-                        $config.GetEnumerator() | Sort-Object Key | ForEach-Object {
-                            Write-Host ("{0,-20} = {1}" -f $_.Key, $_.Value)
+                        catch {
+                            Write-Error "Failed to open editor or reload configuration: $_"
                         }
                     }
                     '^[Cc]$' {
@@ -110,7 +123,9 @@ function Get-VMConfiguration {
                         Write-Host "Invalid input. Please enter Y, E, or C" -ForegroundColor Yellow
                     }
                 }
-            } while ($proceed -notmatch '^[Yy]$|^[Cc]$')
+            } while (-not $confirmed -and $proceed -notmatch '^[Cc]$')
+            
+            return $config
         }
         catch {
             Write-Error "Error processing configuration: $($_.Exception.Message)"
