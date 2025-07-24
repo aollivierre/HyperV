@@ -753,6 +753,7 @@ function Show-ConfigurationSummary {
     Write-Host "  Generation: $($Config.Generation)" -ForegroundColor White
     Write-Host "  Dynamic Memory: $($Config.EnableDynamicMemory)" -ForegroundColor White
     Write-Host "  TPM: $($Config.IncludeTPM)" -ForegroundColor White
+    Write-Host "  Secure Boot: $(if ($Config.Generation -eq 2) { 'Enabled' } else { 'Not Available (Gen 1)' })" -ForegroundColor White
     Write-Host "===================================" -ForegroundColor Cyan
 }
 #endregion Configuration Processing

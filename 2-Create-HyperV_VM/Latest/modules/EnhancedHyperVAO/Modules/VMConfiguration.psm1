@@ -163,7 +163,7 @@ function Add-DVDDriveToVM {
 function EnableVMTPM {
     <#
     .SYNOPSIS
-    Enables TPM for the specified VM.
+    Enables TPM and Secure Boot for the specified VM.
     #>
     [CmdletBinding()]
     param (
@@ -190,8 +190,16 @@ function EnableVMTPM {
             Enable-VMTPM -VMName $VMName
 
             Write-Host "TPM enabled for $VMName"
+            
+            # Enable Secure Boot for Generation 2 VMs
+            $vm = Get-VM -Name $VMName
+            if ($vm.Generation -eq 2) {
+                Write-Host "Enabling Secure Boot for VM: $VMName"
+                Set-VMFirmware -VMName $VMName -EnableSecureBoot On -SecureBootTemplate "MicrosoftWindows"
+                Write-Host "Secure Boot enabled for $VMName with MicrosoftWindows template"
+            }
         } catch {
-            Write-Error "An error occurred while enabling TPM for VM $VMName $($_.Exception.Message)"
+            Write-Error "An error occurred while enabling TPM and Secure Boot for VM $VMName $($_.Exception.Message)"
             Handle-Error -ErrorRecord $_
         }
     }
