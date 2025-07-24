@@ -1,7 +1,7 @@
 @{
     # VHDXPath             = "D:\VM\Setup\VHDX\Win11_23H2_English_x64_July_04_2024-100GB-unattend-PFW-OOBE-tasks.VHDX"
     VHDXPath             = "D:\VM\Setup\VHDX\Win11_24H2_English_x64_Oct16_2024-100GB.VHDX"
-    SwitchName           = "Realtek Gaming 2.5GbE Family Controller - Virtual Switch"
+    SwitchName           = "Default Switch"  # Smart default - will auto-select best available switch
     ParentVHDPath        = "D:\VM\Setup\VHDX\Win11_24H2_English_x64_Oct16_2024-100GB.VHDX"
     VMPath               = "D:\VM"
     InstallMediaPath     = "D:\VM\Setup\ISO\Win11_24H2_English_x64_Oct16_2024.iso"

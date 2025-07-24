@@ -535,16 +535,50 @@ function Get-SmartVirtualSwitch {
         
         # Prefer external switches
         $externalSwitches = $switches | Where-Object { $_.SwitchType -eq 'External' }
-        if ($externalSwitches) {
+        
+        # If multiple external switches exist, let user choose
+        if ($externalSwitches.Count -gt 1) {
+            Write-Host "`n=== Multiple Virtual Switches Found ===" -ForegroundColor Yellow
+            Write-Host "Please select a virtual switch:" -ForegroundColor Yellow
+            
+            for ($i = 0; $i -lt $externalSwitches.Count; $i++) {
+                $sw = $externalSwitches[$i]
+                Write-Host "[$($i+1)] $($sw.Name) (External)" -ForegroundColor White
+            }
+            
+            # If using smart defaults, auto-select the first one
+            if ($script:UseSmartDefaults) {
+                Write-Host "`nAuto-selecting first external switch due to -UseSmartDefaults" -ForegroundColor Cyan
+                $selected = $externalSwitches | Select-Object -First 1
+                Write-Log -Message "Auto-selected external switch: $($selected.Name)" -Level 'INFO'
+                return $selected.Name
+            }
+            
+            do {
+                $choice = Read-Host "`nSelect switch (1-$($externalSwitches.Count))"
+                if ($choice -match '^\d+$') {
+                    $index = [int]$choice - 1
+                    if ($index -ge 0 -and $index -lt $externalSwitches.Count) {
+                        $selected = $externalSwitches[$index]
+                        Write-Log -Message "User selected external switch: $($selected.Name)" -Level 'INFO'
+                        return $selected.Name
+                    }
+                }
+                Write-Host "Invalid selection. Please try again." -ForegroundColor Red
+            } while ($true)
+        }
+        elseif ($externalSwitches.Count -eq 1) {
             $selected = $externalSwitches | Select-Object -First 1
             Write-Log -Message "Selected external switch: $($selected.Name)" -Level 'INFO'
             return $selected.Name
         }
         
         # Fall back to any switch
-        $selected = $switches | Select-Object -First 1
-        Write-Log -Message "Selected switch: $($selected.Name)" -Level 'INFO'
-        return $selected.Name
+        if ($switches.Count -gt 0) {
+            $selected = $switches | Select-Object -First 1
+            Write-Log -Message "Selected switch: $($selected.Name)" -Level 'INFO'
+            return $selected.Name
+        }
     }
     else {
         # User specified a switch name
