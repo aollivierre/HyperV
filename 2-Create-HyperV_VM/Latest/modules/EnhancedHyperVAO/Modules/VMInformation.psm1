@@ -9,7 +9,10 @@ function Get-VMConfiguration {
 
         [Parameter()]
         [ValidateSet('VSCode', 'Notepad', 'None')]
-        [string]$Editor = 'VSCode'
+        [string]$Editor = 'VSCode',
+        
+        [Parameter()]
+        [switch]$NonInteractive
     )
 
     Begin {
@@ -32,6 +35,28 @@ function Get-VMConfiguration {
 
     Process {
         try {
+            # In non-interactive mode, select the first available config
+            if ($NonInteractive) {
+                Write-Host "Non-interactive mode: Selecting first available configuration" -ForegroundColor Yellow
+                $selectedConfig = $configFiles | Select-Object -First 1
+                $configPath = $selectedConfig.FullName
+                
+                Write-Host "Auto-selected configuration: $($selectedConfig.BaseName)" -ForegroundColor Green
+                
+                $importParams = @{
+                    Path = $configPath
+                    ErrorAction = 'Stop'
+                }
+                
+                $config = Import-PowerShellDataFile @importParams
+                
+                Write-Host "`nConfiguration loaded successfully:" -ForegroundColor Cyan
+                Write-Host "File: $($selectedConfig.Name)" -ForegroundColor Cyan
+                
+                return $config
+            }
+            
+            # Interactive mode (original behavior)
             # Display available configurations
             Write-Host "`n=== Available VM Configurations ===" -ForegroundColor Cyan
             Write-Host "----------------------------------------" -ForegroundColor Cyan

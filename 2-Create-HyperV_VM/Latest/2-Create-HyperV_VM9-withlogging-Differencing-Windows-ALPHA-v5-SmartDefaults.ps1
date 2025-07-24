@@ -454,7 +454,9 @@ function Get-SmartPaths {
     }
     
     # Merge with existing config (existing values take precedence)
-    foreach ($key in $Config.Keys) {
+    # Create a copy of keys to avoid modification during enumeration
+    $configKeys = @($Config.Keys)
+    foreach ($key in $configKeys) {
         if ($Config[$key] -and $Config[$key] -ne "") {
             # If the config has a value, update it with the new drive letter
             if ($key -match 'Path$' -and $Config[$key] -match '^[A-Za-z]:') {
@@ -464,7 +466,8 @@ function Get-SmartPaths {
     }
     
     # Add smart paths for missing values
-    foreach ($key in $smartPaths.Keys) {
+    $smartPathKeys = @($smartPaths.Keys)
+    foreach ($key in $smartPathKeys) {
         if (-not $Config.ContainsKey($key) -or [string]::IsNullOrEmpty($Config[$key])) {
             $Config[$key] = $smartPaths[$key]
         }
@@ -723,7 +726,16 @@ try {
     }
     
     # Get the configuration
-    $config = Get-VMConfiguration -ConfigPath $ConfigurationPath
+    $getConfigParams = @{
+        ConfigPath = $ConfigurationPath
+    }
+    
+    # Add NonInteractive flag if using smart defaults
+    if ($UseSmartDefaults) {
+        $getConfigParams.NonInteractive = $true
+    }
+    
+    $config = Get-VMConfiguration @getConfigParams
     
     # Verify configuration was loaded
     if (-not $config) {
