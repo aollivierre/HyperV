@@ -1,3 +1,18 @@
 *.secrets
 /OPNSense/AIResearchers
 /OPNSense/AIResearchers
+
+# Ignore nul files
+nul
+**/nul
+
+# Logs
+*.log
+**/Logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test results
+TestResults-*.json

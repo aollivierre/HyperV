@@ -10,5 +10,5 @@
     MemoryMaximumBytes   = "16GB"
     Generation           = 2
     VMNamePrefixFormat   = "{0:D3} - ABC Lab - Win 10 migration to Windows 11"
-    ProcessorCount       = 24
+    ProcessorCount       = "All Cores"  # Smart default - uses all available CPU cores
 }

@@ -10,5 +10,5 @@
     MemoryMaximumBytes   = "16GB"
     Generation           = 2
     VMNamePrefixFormat   = "{0:D3} - ABC - TDD - AB - Unit - Integration - Testing - 01"
-    ProcessorCount       = 24
+    ProcessorCount       = "All Cores"  # Smart default - uses all available CPU cores
 }

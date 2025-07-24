@@ -14,7 +14,9 @@
       "Bash(git rm:*)",
       "Bash(Remove-Item -Path \"2-Create-HyperV_VM/Latest/modules/EnhancedHyperVAO/.git\" -Recurse -Force)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(mv:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }
