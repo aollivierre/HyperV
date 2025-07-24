@@ -52,7 +52,7 @@ param(
     [string]$ISOPath = "D:\VM\Setup\ISO\Windows_10_22H2_July_29_2023.iso",
 
     [Parameter(Mandatory = $false, HelpMessage = "Directory where VHDX files will be created")]
-    [string]$OutputDirectory = "D:\VM\Setup\VHDX",
+    [string]$OutputDirectory = "D:\VM\Setup\VHDX\test",
 
     [Parameter(Mandatory = $false, HelpMessage = "Virtual hard disk format")]
     [ValidateSet("VHD", "VHDX")]

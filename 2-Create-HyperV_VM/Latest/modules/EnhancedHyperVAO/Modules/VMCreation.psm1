@@ -319,11 +319,10 @@ function Create-EnhancedVM {
             if ($UsesDifferencing) {
                 Write-Host "Creating VM with differencing disk"
                 
-                # Create differencing disk
+                # Set up differencing disk path
                 $vmDestinationPath = Join-Path -Path $VMFullPath -ChildPath "$VMName.vhdx"
-                New-DifferencingVHDX -ParentPath $VHDXPath -ChildPath $vmDestinationPath
                 
-                # Create VM with differencing disk
+                # Create VM with differencing disk (New-CustomVMWithDifferencingDisk will create the disk)
                 $vmParams = @{
                     VMName             = $VMName
                     VMFullPath         = $VMFullPath

@@ -433,7 +433,7 @@ function Get-SmartPaths {
     # Define standard folder structure
     $smartPaths = @{
         VMPath = "${DriveLetter}:\VMs"
-        VHDXPath = "${DriveLetter}:\VMs\Templates"
+        TemplatesPath = "${DriveLetter}:\VMs\Templates"
         ISOPath = "${DriveLetter}:\VMs\ISOs"
         ExportPath = "${DriveLetter}:\VMs\Exports"
         CheckpointPath = "${DriveLetter}:\VMs\Checkpoints"
@@ -465,11 +465,14 @@ function Get-SmartPaths {
         }
     }
     
-    # Add smart paths for missing values
+    # Add smart paths for missing values (but not VHDXPath as it should be a file, not a directory)
     $smartPathKeys = @($smartPaths.Keys)
     foreach ($key in $smartPathKeys) {
         if (-not $Config.ContainsKey($key) -or [string]::IsNullOrEmpty($Config[$key])) {
-            $Config[$key] = $smartPaths[$key]
+            # Don't add VHDXPath or ParentVHDXPath from smart paths
+            if ($key -ne 'VHDXPath' -and $key -ne 'ParentVHDXPath') {
+                $Config[$key] = $smartPaths[$key]
+            }
         }
     }
     
@@ -861,6 +864,14 @@ try {
     
     # Process configuration with smart defaults
     $config = Process-SmartConfiguration -Config $config -SelectedDrive $selectedDrive.DriveLetter
+    
+    # If VMType is Differencing but VHDXPath is not set, set it from ParentVHDXPath
+    if ($config.VMType -eq 'Differencing' -and $config.ContainsKey('ParentVHDXPath')) {
+        if (-not $config.ContainsKey('VHDXPath') -or [string]::IsNullOrEmpty($config.VHDXPath)) {
+            $config.VHDXPath = $config.ParentVHDXPath
+            Write-Log -Message "Set VHDXPath from ParentVHDXPath for differencing disk" -Level 'INFO'
+        }
+    }
     
     # Show configuration summary
     Show-ConfigurationSummary -Config $config -SelectedDrive $selectedDrive
