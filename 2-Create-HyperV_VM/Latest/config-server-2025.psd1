@@ -1,7 +1,6 @@
 @{
-    # VM Type - Optional: 'Standard' for new disk, 'Differencing' for differencing disk
-    # If not specified, user will be prompted or smart defaults will decide
-    # VMType             = "Differencing"
+    # VM Type - 'Standard' for new disk, 'Differencing' for differencing disk
+    VMType               = "Standard"  # Create new disk for server
     
     # Parent VHDX for differencing disk (required if VMType = 'Differencing')
     ParentVHDXPath       = "D:\VM\Setup\VHDX\WinServer2025_English_x64_July_24_2025-100GB.vhdx"
@@ -20,4 +19,9 @@
     Generation           = 2
     VMNamePrefixFormat   = "{0:D3} - ABC LAB - Testing ISO to VHDX converter"
     ProcessorCount       = "All Cores"  # Smart default - uses all logical processors
+    
+    # Advanced options
+    UseAllAvailableSwitches = $false  # Set to $true to add all available switches as NICs
+    AutoStartVM          = $false     # Do not auto-start server VMs
+    AutoConnectVM        = $false     # Do not auto-connect to server VMs
 }

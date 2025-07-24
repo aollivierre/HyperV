@@ -1,7 +1,6 @@
 @{
-    # VM Type - Optional: 'Standard' for new disk, 'Differencing' for differencing disk
-    # If not specified, user will be prompted or smart defaults will decide
-    # VMType             = "Differencing"
+    # VM Type - 'Standard' for new disk, 'Differencing' for differencing disk
+    VMType               = "Differencing"  # Use differencing disk by default
     
     # Parent VHDX for differencing disk (optional - only used if creating differencing disk)
     ParentVHDXPath       = "D:\VM\Setup\VHDX\Win11_24H2_English_x64_Oct16_2024-100GB.VHDX"
@@ -20,4 +19,9 @@
     Generation           = 2
     VMNamePrefixFormat   = "{0:D3} - ABC - TDD - AB - Unit - Integration - Testing - 01"
     ProcessorCount       = "All Cores"  # Smart default - uses all logical processors (including hyperthreading)
+    
+    # Advanced options
+    UseAllAvailableSwitches = $false  # Set to $true to add all available switches as NICs
+    AutoStartVM          = $true      # Automatically start VM after creation
+    AutoConnectVM        = $true      # Automatically open VM console after creation
 }

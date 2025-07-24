@@ -1062,6 +1062,19 @@ try {
         Write-Log -Message "Creating VM with new VHD..." -Level "INFO"
     }
     
+    # Add advanced options
+    if ($config.UseAllAvailableSwitches) {
+        $createVMParams.UseAllAvailableSwitches = $config.UseAllAvailableSwitches
+    }
+    
+    if ($config.AutoStartVM) {
+        $createVMParams.AutoStartVM = $config.AutoStartVM
+    }
+    
+    if ($config.AutoConnectVM) {
+        $createVMParams.AutoConnectVM = $config.AutoConnectVM
+    }
+    
     # Create the VM
     Create-EnhancedVM @createVMParams
     

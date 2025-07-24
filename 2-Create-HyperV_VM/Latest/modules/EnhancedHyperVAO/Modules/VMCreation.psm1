@@ -279,7 +279,16 @@ function Create-EnhancedVM {
         [int]$MemoryPriority = 80,
         
         [Parameter()]
-        [bool]$IncludeTPM = $true
+        [bool]$IncludeTPM = $true,
+        
+        [Parameter()]
+        [bool]$UseAllAvailableSwitches = $false,
+        
+        [Parameter()]
+        [bool]$AutoStartVM = $false,
+        
+        [Parameter()]
+        [bool]$AutoConnectVM = $false
     )
     
     Begin {
@@ -312,7 +321,7 @@ function Create-EnhancedVM {
                 
                 # Create differencing disk
                 $vmDestinationPath = Join-Path -Path $VMFullPath -ChildPath "$VMName.vhdx"
-                New-DifferencingVHDX -ParentVHDPath $VHDXPath -DifferencingVHDPath $vmDestinationPath
+                New-DifferencingVHDX -ParentPath $VHDXPath -ChildPath $vmDestinationPath
                 
                 # Create VM with differencing disk
                 $vmParams = @{
@@ -389,6 +398,25 @@ function Create-EnhancedVM {
                 }
             }
             
+            # Add all available switches as NICs if requested
+            if ($UseAllAvailableSwitches) {
+                Write-Host "Adding all available switches as network adapters..."
+                $allSwitches = Get-VMSwitch | Where-Object { $_.Name -ne $ExternalSwitchName -and $_.Name -ne $InternalSwitchName }
+                $nicIndex = 2
+                
+                foreach ($switch in $allSwitches) {
+                    try {
+                        $nicName = "NIC$nicIndex-$($switch.Name)"
+                        Add-VMNetworkAdapter -VMName $VMName -Name $nicName -SwitchName $switch.Name
+                        Write-Host "  Added NIC: $nicName connected to switch: $($switch.Name)"
+                        $nicIndex++
+                    }
+                    catch {
+                        Write-Warning "Failed to add NIC for switch '$($switch.Name)': $_"
+                    }
+                }
+            }
+            
             # Enable TPM if requested
             if ($IncludeTPM) {
                 EnableVMTPM -VMName $VMName
@@ -401,11 +429,31 @@ function Create-EnhancedVM {
             
             Write-Host "VM '$VMName' created successfully"
             
-            # Start VM if requested
-            $startVM = Read-Host "`nDo you want to start the VM now? (Y/N)"
-            if ($startVM -match '^[Yy]') {
+            # Auto-start VM if requested
+            if ($AutoStartVM) {
+                Write-Host "`nAuto-starting VM..."
                 Start-VM -Name $VMName
                 Write-Host "VM started successfully"
+                
+                # Auto-connect to VM console if requested
+                if ($AutoConnectVM) {
+                    Write-Host "Opening VM console..."
+                    Connect-VMConsole -VMName $VMName
+                }
+            }
+            else {
+                # Ask user if not auto-start
+                $startVM = Read-Host "`nDo you want to start the VM now? (Y/N)"
+                if ($startVM -match '^[Yy]') {
+                    Start-VM -Name $VMName
+                    Write-Host "VM started successfully"
+                    
+                    # Ask about console connection
+                    $connectVM = Read-Host "Do you want to connect to the VM console? (Y/N)"
+                    if ($connectVM -match '^[Yy]') {
+                        Connect-VMConsole -VMName $VMName
+                    }
+                }
             }
         }
         catch {
