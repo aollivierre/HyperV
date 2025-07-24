@@ -751,6 +751,7 @@ function Show-ConfigurationSummary {
     
     Write-Host "`nVM Settings:" -ForegroundColor Yellow
     Write-Host "  Generation: $($Config.Generation)" -ForegroundColor White
+    Write-Host "  Disk Type: $(if ($Config.VMType -eq 'Differencing') { 'Differencing Disk' } else { 'New Disk' })" -ForegroundColor White
     Write-Host "  Dynamic Memory: $($Config.EnableDynamicMemory)" -ForegroundColor White
     Write-Host "  TPM: $($Config.IncludeTPM)" -ForegroundColor White
     Write-Host "  Secure Boot: $(if ($Config.Generation -eq 2) { 'Enabled' } else { 'Not Available (Gen 1)' })" -ForegroundColor White
@@ -863,6 +864,60 @@ try {
     
     # Show configuration summary
     Show-ConfigurationSummary -Config $config -SelectedDrive $selectedDrive
+    
+    # Ask about disk type if not specified and not using smart defaults
+    if (-not $UseSmartDefaults -and -not $config.ContainsKey('VMType')) {
+        Write-Host "`n=== Disk Type Selection ===" -ForegroundColor Yellow
+        
+        # Check if we have a parent VHDX available
+        $hasParentVHDX = $config.ContainsKey('ParentVHDXPath') -and (Test-Path $config.ParentVHDXPath)
+        
+        if ($hasParentVHDX) {
+            Write-Host "[1] New Disk (Create a new VHDX file)" -ForegroundColor White
+            Write-Host "[2] Differencing Disk (Create from parent: $(Split-Path $config.ParentVHDXPath -Leaf))" -ForegroundColor White
+            
+            do {
+                $diskChoice = Read-Host "`nSelect disk type (1-2)"
+                $validChoice = $diskChoice -match '^[12]$'
+                
+                if (-not $validChoice) {
+                    Write-Host "Invalid selection. Please enter 1 or 2." -ForegroundColor Red
+                }
+            } while (-not $validChoice)
+            
+            if ($diskChoice -eq '2') {
+                $config.VMType = 'Differencing'
+                $config.VHDXPath = $config.ParentVHDXPath  # Set VHDXPath for differencing
+                Write-Host "Using differencing disk" -ForegroundColor Green
+            }
+            else {
+                $config.VMType = 'Standard'
+                $config.Remove('VHDXPath')  # Remove VHDXPath to create new disk
+                Write-Host "Creating new disk" -ForegroundColor Green
+            }
+        }
+        else {
+            # No parent VHDX available, create new disk
+            $config.VMType = 'Standard'
+            $config.Remove('VHDXPath')
+            Write-Host "No parent VHDX available. Creating new disk." -ForegroundColor Yellow
+        }
+    }
+    elseif ($UseSmartDefaults) {
+        # In smart defaults mode, use differencing if ParentVHDXPath exists
+        if ($config.ContainsKey('ParentVHDXPath') -and (Test-Path $config.ParentVHDXPath)) {
+            $config.VMType = 'Differencing'
+            $config.VHDXPath = $config.ParentVHDXPath
+            Write-Log -Message "Smart defaults: Using differencing disk" -Level 'INFO'
+        }
+        else {
+            $config.VMType = 'Standard'
+            if ($config.ContainsKey('VHDXPath')) {
+                $config.Remove('VHDXPath')
+            }
+            Write-Log -Message "Smart defaults: Creating new disk" -Level 'INFO'
+        }
+    }
     
     # Confirm configuration unless using smart defaults
     if (-not $UseSmartDefaults) {

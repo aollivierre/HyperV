@@ -1,13 +1,23 @@
 @{
-    VHDXPath             = "D:\VM\Setup\VHDX\Windows_SERVER_2025_EVAL_x64FRE_en-us-May-17-2024-100GB.VHDX"
-    SwitchName           = "Realtek Gaming 2.5GbE Family Controller - Virtual Switch"
-    ParentVHDPath        = "D:\VM\Setup\VHDX\Windows_SERVER_2025_EVAL_x64FRE_en-us-May-17-2024-100GB.VHDX"
+    # VM Type - Optional: 'Standard' for new disk, 'Differencing' for differencing disk
+    # If not specified, user will be prompted or smart defaults will decide
+    # VMType             = "Differencing"
+    
+    # Parent VHDX for differencing disk (required if VMType = 'Differencing')
+    ParentVHDXPath       = "D:\VM\Setup\VHDX\WinServer2025_English_x64_July_24_2025-100GB.vhdx"
+    
+    # Network and paths
+    SwitchName           = "Default Switch"  # Smart default - will auto-select best available switch
     VMPath               = "D:\VM"
-    InstallMediaPath     = "D:\VM\Setup\ISO\Win11_23H2_English_x64v2_May_19_2024.iso"
+    InstallMediaPath     = "D:\VM\Setup\ISO\Windows_SERVER_2025_EVAL_x64FRE_en-us-July-25-2025.iso"
+    
+    # Memory configuration
     MemoryStartupBytes   = "4GB"
     MemoryMinimumBytes   = "4GB"
     MemoryMaximumBytes   = "16GB"
+    
+    # VM settings
     Generation           = 2
-    VMNamePrefixFormat   = "{0:D3} - BitLocker - ByPass Safemode - Bad Driver"
-    ProcessorCount       = 24
+    VMNamePrefixFormat   = "{0:D3} - ABC LAB - Testing ISO to VHDX converter"
+    ProcessorCount       = "All Cores"  # Smart default - uses all logical processors
 }
