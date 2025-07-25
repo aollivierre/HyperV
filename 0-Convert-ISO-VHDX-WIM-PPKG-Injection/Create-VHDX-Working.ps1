@@ -50,7 +50,12 @@ while (!(Test-Path $ISOPath)) {
 $OutputDir = $OutputDir.Trim('"')
 try {
     # Check if drive exists
-    $drive = Split-Path $OutputDir -Qualifier
+    $drive = $null
+    try {
+        $drive = Split-Path $OutputDir -Qualifier -ErrorAction SilentlyContinue
+    } catch {
+        # Not a qualified path, ignore
+    }
     if ($drive -and !(Test-Path "$drive\")) {
         Write-Host ""
         Write-Host "Drive $drive does not exist." -ForegroundColor Yellow
