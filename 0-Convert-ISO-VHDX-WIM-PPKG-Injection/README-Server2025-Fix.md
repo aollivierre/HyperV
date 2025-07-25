@@ -55,14 +55,20 @@ We've created new scripts that bypass the problematic Convert-WindowsImage modul
 ## Quick Start
 
 ```powershell
-# Basic usage (uses Windows10.iso from C:\code\ISO\)
+# Basic usage - prompts for edition selection
 .\Create-VHDX-Working.ps1
 
 # Custom ISO and output location
 .\Create-VHDX-Working.ps1 -ISOPath "D:\ISOs\Windows11.iso" -OutputDir "E:\VHDXs" -SizeGB 120
 
-# Specific Windows edition (default is 6 for Pro)
-.\Create-VHDX-Working.ps1 -EditionIndex 4
+# Skip edition prompt by specifying index (e.g., 6 for Pro)
+.\Create-VHDX-Working.ps1 -EditionIndex 6
+
+# Common edition indexes:
+# 1 = Home
+# 4 = Education  
+# 6 = Pro
+# 7 = Pro N
 ```
 
 ## Key Discoveries

@@ -4,7 +4,7 @@ param(
     [string]$ISOPath = "C:\code\ISO\Windows10.iso",
     [string]$OutputDir = "C:\code\VM\Setup\VHDX\test",
     [int]$SizeGB = 100,
-    [int]$EditionIndex = 6
+    [int]$EditionIndex = 0  # 0 means prompt for selection
 )
 
 function Execute-Diskpart {
@@ -131,9 +131,58 @@ try {
     exit 1
 }
 
-# Show editions
-Write-Host "[4/6] Windows editions..." -ForegroundColor Yellow
-Write-Host "Using edition index: $EditionIndex" -ForegroundColor Gray
+# Show and select editions
+Write-Host "[4/6] Selecting Windows edition..." -ForegroundColor Yellow
+try {
+    # Get all available editions
+    $editions = Get-WindowsImage -ImagePath $wimPath
+    
+    # Check if EditionIndex was pre-selected
+    if ($EditionIndex -gt 0) {
+        # Validate the pre-selected index
+        $selected = $editions | Where-Object { $_.ImageIndex -eq $EditionIndex }
+        if ($selected) {
+            Write-Host "Using pre-selected edition: [$($selected.ImageIndex)] $($selected.ImageName)" -ForegroundColor Green
+        } else {
+            Write-Host "Invalid edition index $EditionIndex. Prompting for selection..." -ForegroundColor Yellow
+            $EditionIndex = 0
+        }
+    }
+    
+    # If no valid pre-selection, prompt user
+    if ($EditionIndex -eq 0) {
+        Write-Host ""
+        Write-Host "Available Windows Editions:" -ForegroundColor Cyan
+        Write-Host "===========================" -ForegroundColor Cyan
+        
+        foreach ($edition in $editions) {
+            Write-Host "[$($edition.ImageIndex)] $($edition.ImageName)"
+        }
+        
+        Write-Host ""
+        Write-Host "Please select an edition by entering its number:" -ForegroundColor Yellow
+        $choice = Read-Host
+        
+        # Validate choice
+        if ($choice -match '^\d+$') {
+            $selectedIndex = [int]$choice
+            $selected = $editions | Where-Object { $_.ImageIndex -eq $selectedIndex }
+            if ($selected) {
+                $EditionIndex = $selectedIndex
+                Write-Host "Selected: [$($selected.ImageIndex)] $($selected.ImageName)" -ForegroundColor Green
+            } else {
+                throw "Invalid selection. Edition index $selectedIndex not found."
+            }
+        } else {
+            throw "Invalid input. Please enter a number."
+        }
+    }
+} catch {
+    Write-Host "FAILED: $_" -ForegroundColor Red
+    Dismount-DiskImage -ImagePath $ISOPath
+    Execute-Diskpart @("select vdisk file=""$vhdxPath""", "detach vdisk") | Out-Null
+    exit 1
+}
 
 # Apply image
 Write-Host "[5/6] Applying Windows image..." -ForegroundColor Yellow
