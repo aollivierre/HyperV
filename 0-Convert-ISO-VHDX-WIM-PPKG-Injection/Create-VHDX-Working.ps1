@@ -7,6 +7,10 @@ param(
     [int]$EditionIndex = 0  # 0 means prompt for selection
 )
 
+# Script-level variables for drive letters
+$script:efiLetter = ""
+$script:winLetter = ""
+
 function Execute-Diskpart {
     param([string[]]$Commands)
     $script = $Commands -join "`n"
@@ -24,24 +28,90 @@ Clear-Host
 Write-Host "ISO to VHDX Converter" -ForegroundColor Cyan
 Write-Host "====================" -ForegroundColor Cyan
 
-# Validate
-if (!(Test-Path $ISOPath)) {
-    Write-Host "ERROR: ISO not found: $ISOPath" -ForegroundColor Red
-    exit 1
+# Validate ISO path - prompt if not found
+while (!(Test-Path $ISOPath)) {
+    Write-Host ""
+    Write-Host "ISO file not found: $ISOPath" -ForegroundColor Yellow
+    Write-Host "Please enter the path to your Windows ISO file:" -ForegroundColor Cyan
+    $ISOPath = Read-Host
+    
+    # Handle quotes and expand path
+    $ISOPath = $ISOPath.Trim('"')
+    
+    if (!(Test-Path $ISOPath)) {
+        Write-Host "File not found. Please try again." -ForegroundColor Red
+    } elseif ($ISOPath -notmatch '\.iso$') {
+        Write-Host "File must be an ISO file (*.iso)" -ForegroundColor Red
+        $ISOPath = "invalid"  # Force loop to continue
+    }
 }
 
-# Setup
-if (!(Test-Path $OutputDir)) {
-    New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+# Validate output directory
+$OutputDir = $OutputDir.Trim('"')
+try {
+    # Check if drive exists
+    $drive = Split-Path $OutputDir -Qualifier
+    if ($drive -and !(Test-Path "$drive\")) {
+        Write-Host ""
+        Write-Host "Drive $drive does not exist." -ForegroundColor Yellow
+        Write-Host "Available drives:" -ForegroundColor Cyan
+        Get-PSDrive -PSProvider FileSystem | ForEach-Object { Write-Host "  $($_.Name):" }
+        Write-Host ""
+        Write-Host "Please enter a valid output directory path:" -ForegroundColor Cyan
+        $OutputDir = Read-Host
+        $OutputDir = $OutputDir.Trim('"')
+    }
+    
+    # Create directory if it doesn't exist
+    if (!(Test-Path $OutputDir)) {
+        Write-Host "Creating output directory: $OutputDir" -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path $OutputDir -Force -ErrorAction Stop | Out-Null
+    }
+} catch {
+    Write-Host "ERROR: Cannot create output directory: $_" -ForegroundColor Red
+    Write-Host "Please enter a valid output directory path:" -ForegroundColor Cyan
+    $OutputDir = Read-Host
+    $OutputDir = $OutputDir.Trim('"')
+    
+    try {
+        if (!(Test-Path $OutputDir)) {
+            New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+        }
+    } catch {
+        Write-Host "ERROR: Cannot create directory. Using temp directory instead." -ForegroundColor Red
+        $OutputDir = $env:TEMP
+    }
 }
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $vhdxPath = Join-Path $OutputDir "Windows10_$timestamp.vhdx"
 
+# Check available disk space
+$outputDrive = (Get-Item $OutputDir).PSDrive.Name
+$driveInfo = Get-PSDrive $outputDrive
+$freeSpaceGB = [math]::Round($driveInfo.Free / 1GB, 2)
+$requiredSpaceGB = [math]::Round($SizeGB * 0.2, 2)  # Estimate 20% for dynamic VHDX
+
+if ($freeSpaceGB -lt $requiredSpaceGB) {
+    Write-Host ""
+    Write-Host "WARNING: Low disk space!" -ForegroundColor Yellow
+    Write-Host "Available: $freeSpaceGB GB"
+    Write-Host "Recommended: $requiredSpaceGB GB (for $SizeGB GB VHDX)"
+    Write-Host ""
+    Write-Host "Continue anyway? (Y/N)" -ForegroundColor Yellow
+    $continue = Read-Host
+    if ($continue -ne 'Y' -and $continue -ne 'y') {
+        Write-Host "Operation cancelled." -ForegroundColor Red
+        exit 0
+    }
+}
+
 Write-Host ""
+Write-Host "Configuration Summary:" -ForegroundColor Green
 Write-Host "ISO: $ISOPath"
 Write-Host "Output: $vhdxPath"
 Write-Host "Size: $SizeGB GB"
+Write-Host "Free Space: $freeSpaceGB GB"
 Write-Host ""
 
 # Create VHDX
@@ -89,6 +159,20 @@ try {
     $diskNum = [regex]::Match($virtualDisk, "Disk (\d+)").Groups[1].Value
     Write-Host "Using Disk $diskNum" -ForegroundColor Gray
     
+    # Get available drive letters
+    $usedLetters = (Get-PSDrive -PSProvider FileSystem).Name
+    $allLetters = 67..90 | ForEach-Object { [char]$_ }  # C-Z
+    $availableLetters = $allLetters | Where-Object { $_ -notin $usedLetters }
+    
+    if ($availableLetters.Count -lt 2) {
+        throw "Not enough drive letters available. Need at least 2 free drive letters."
+    }
+    
+    $script:efiLetter = $availableLetters[0]
+    $script:winLetter = $availableLetters[1]
+    
+    Write-Host "Using drive letters: EFI=$($script:efiLetter), Windows=$($script:winLetter)" -ForegroundColor Gray
+    
     # Partition disk
     Execute-Diskpart @(
         "select disk $diskNum",
@@ -96,11 +180,11 @@ try {
         "convert gpt",
         "create partition efi size=100",
         "format quick fs=fat32 label=""EFI""",
-        "assign letter=S",
+        "assign letter=$($script:efiLetter)",
         "create partition msr size=128",
         "create partition primary",
         "format quick fs=ntfs label=""Windows""",
-        "assign letter=W"
+        "assign letter=$($script:winLetter)"
     ) | Out-Null
     
     Write-Host "OK - Disk partitioned" -ForegroundColor Green
@@ -197,7 +281,7 @@ try {
         "/Apply-Image",
         "/ImageFile:""$wimPath""",
         "/Index:$EditionIndex",
-        "/ApplyDir:W:\",
+        "/ApplyDir:$($script:winLetter):\",
         "/LogPath:""$logPath"""
     )
     
@@ -229,7 +313,7 @@ try {
 # Configure boot
 Write-Host "[6/6] Configuring boot..." -ForegroundColor Yellow
 try {
-    & bcdboot W:\Windows /s S: /f UEFI | Out-Null
+    & bcdboot "$($script:winLetter):\Windows" /s "$($script:efiLetter):" /f UEFI | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "OK - Boot configured" -ForegroundColor Green
     } else {
