@@ -1,5 +1,9 @@
 function Convert-WindowsImage {
     <#
+    .WARNING
+        KNOWN ISSUE: This module hangs on Windows Server 2025.
+        For Server 2025 compatibility, use Create-VHDX-Working.ps1 instead.
+        
     .NOTES
         Version:        21H2-20211020
 

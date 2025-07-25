@@ -1,6 +1,14 @@
 #requires -Version 5.1
 
 <#
+################################################################################
+# WARNING: KNOWN ISSUE ON WINDOWS SERVER 2025
+# 
+# This script hangs indefinitely on Windows Server 2025 and newer.
+# For Server 2025, use Create-VHDX-Working.ps1 instead.
+# See README-Server2025-Fix.md for details.
+################################################################################
+
 .SYNOPSIS
     Windows Image to Virtual Hard Disk Converter with module import and parameterized configuration.
 
