@@ -5,18 +5,8 @@
       "Bash(wmic:*)",
       "Bash(powershell:*)",
       "Bash(cmd /c:*)",
-      "Bash(git checkout:*)",
-      "Bash(cp:*)",
-      "Bash(mkdir:*)",
-      "Bash(xcopy:*)",
-      "Bash(robocopy:*)",
-      "Bash(git add:*)",
-      "Bash(git rm:*)",
-      "Bash(Remove-Item -Path \"2-Create-HyperV_VM/Latest/modules/EnhancedHyperVAO/.git\" -Recurse -Force)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(mv:*)",
-      "Bash(ls:*)"
+      "Bash(git merge:*)",
+      "Bash(git stash:*)"
     ],
     "deny": []
   }
