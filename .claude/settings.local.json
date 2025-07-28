@@ -16,7 +16,12 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(mv:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git branch:*)",
+      "Bash(Copy-Item:*)",
+      "Bash(git restore:*)",
+      "Bash(Remove-Item -Path \"D:\\Code\\HyperV\\2-Create-HyperV_VM\\Latest\\backup-vmcreation.ps1\" -Force)",
+      "Bash(Remove-Item \"D:\\Code\\HyperV\\2-Create-HyperV_VM\\Latest\\cleanup-temp.ps1\" -Force)"
     ],
     "deny": []
   }

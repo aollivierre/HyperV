@@ -1,0 +1,1 @@
+Remove-Item -Path "D:\Code\HyperV\2-Create-HyperV_VM\Latest\backup-vmcreation.ps1" -Force -ErrorAction SilentlyContinue

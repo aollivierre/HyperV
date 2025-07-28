@@ -1,0 +1,1 @@
+Get-VMSwitch | Select-Object Name, SwitchType | Format-Table -AutoSize
