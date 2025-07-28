@@ -288,19 +288,7 @@ function Create-EnhancedVM {
         [bool]$AutoStartVM = $false,
         
         [Parameter()]
-        [bool]$AutoConnectVM = $false,
-        
-        [Parameter()]
-        [bool]$EnableDataDisk = $false,
-        
-        [Parameter()]
-        [string]$DataDiskType = 'Standard',
-        
-        [Parameter()]
-        [uint64]$DataDiskSize = 256GB,
-        
-        [Parameter()]
-        [string]$DataDiskParentPath
+        [bool]$AutoConnectVM = $false
     )
     
     Begin {
@@ -411,36 +399,19 @@ function Create-EnhancedVM {
             
             # Add all available switches as NICs if requested
             if ($UseAllAvailableSwitches) {
-                Write-Host "`nConfiguring multiple network adapters..." -ForegroundColor Yellow
+                Write-Host "Adding all available switches as network adapters..."
                 $allSwitches = Get-VMSwitch | Where-Object { $_.Name -ne $ExternalSwitchName -and $_.Name -ne $InternalSwitchName }
+                $nicIndex = 2
                 
-                if ($allSwitches.Count -eq 0) {
-                    Write-Host "  No additional switches found to add" -ForegroundColor Yellow
-                }
-                else {
-                    Write-Host "  Found $($allSwitches.Count) additional switch(es) to add:" -ForegroundColor Green
-                    $nicIndex = 2
-                    
-                    foreach ($switch in $allSwitches) {
-                        try {
-                            $nicName = "NIC$nicIndex-$($switch.Name)"
-                            Add-VMNetworkAdapter -VMName $VMName -Name $nicName -SwitchName $switch.Name
-                            Write-Host "  [$nicIndex] Added NIC: $nicName" -ForegroundColor Green
-                            Write-Host "      Connected to: $($switch.Name) ($($switch.SwitchType))" -ForegroundColor Gray
-                            $nicIndex++
-                        }
-                        catch {
-                            Write-Warning "Failed to add NIC for switch '$($switch.Name)': $_"
-                        }
+                foreach ($switch in $allSwitches) {
+                    try {
+                        $nicName = "NIC$nicIndex-$($switch.Name)"
+                        Add-VMNetworkAdapter -VMName $VMName -Name $nicName -SwitchName $switch.Name
+                        Write-Host "  Added NIC: $nicName connected to switch: $($switch.Name)"
+                        $nicIndex++
                     }
-                    
-                    # Summary of network configuration
-                    Write-Host "`nNetwork Configuration Summary:" -ForegroundColor Cyan
-                    $allNics = Get-VMNetworkAdapter -VMName $VMName
-                    $nicNum = 1
-                    foreach ($nic in $allNics) {
-                        Write-Host "  NIC ${nicNum}: $($nic.Name) -> $($nic.SwitchName)" -ForegroundColor White
-                        $nicNum++
+                    catch {
+                        Write-Warning "Failed to add NIC for switch '$($switch.Name)': $_"
                     }
                 }
             }
@@ -453,39 +424,6 @@ function Create-EnhancedVM {
             # Enable Secure Boot for Generation 2 VMs
             if ($Generation -eq 2) {
                 Enable-VMSecureBoot -VMName $VMName
-            }
-            
-            # Add data disk if requested
-            if ($EnableDataDisk) {
-                Write-Host "`nAdding data disk to VM..."
-                
-                try {
-                    # Determine data disk path
-                    $dataDiskPath = Join-Path -Path $VMFullPath -ChildPath "$VMName-DataDisk.vhdx"
-                    
-                    if ($DataDiskType -eq 'Differencing' -and $DataDiskParentPath) {
-                        # Validate parent disk exists
-                        if (-not (Test-Path $DataDiskParentPath)) {
-                            throw "Data disk parent path not found: $DataDiskParentPath"
-                        }
-                        
-                        Write-Host "Creating differencing data disk from parent: $(Split-Path $DataDiskParentPath -Leaf)"
-                        $newDataDisk = New-VHD -Path $dataDiskPath -ParentPath $DataDiskParentPath -Differencing
-                    }
-                    else {
-                        # Create standard dynamic disk
-                        Write-Host "Creating new dynamic data disk ($([math]::Round($DataDiskSize/1GB, 2)) GB)"
-                        $newDataDisk = New-VHD -Path $dataDiskPath -SizeBytes $DataDiskSize -Dynamic -BlockSizeBytes 32MB
-                    }
-                    
-                    # Attach data disk to VM
-                    Add-VMHardDiskDrive -VMName $VMName -Path $dataDiskPath -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 1
-                    Write-Host "Data disk attached successfully"
-                }
-                catch {
-                    Write-Warning "Failed to add data disk: $_"
-                    # Continue with VM creation even if data disk fails
-                }
             }
             
             Write-Host "VM '$VMName' created successfully"

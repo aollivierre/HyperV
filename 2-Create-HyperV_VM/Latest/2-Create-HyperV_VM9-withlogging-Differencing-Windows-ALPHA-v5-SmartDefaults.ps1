@@ -808,6 +808,17 @@ function Show-ConfigurationSummary {
     Write-Host "  Processors: $($Config.ProcessorCount) cores" -ForegroundColor White
     Write-Host "  Memory: $($Config.MemoryStartupBytes) (Min: $($Config.MemoryMinimumBytes), Max: $($Config.MemoryMaximumBytes))" -ForegroundColor White
     
+    if ($Config.EnableDataDisk) {
+        Write-Host "`nData Disk:" -ForegroundColor Yellow
+        Write-Host "  Type: $($Config.DataDiskType)" -ForegroundColor White
+        if ($Config.DataDiskType -eq 'Differencing' -and $Config.DataDiskParentPath) {
+            Write-Host "  Parent: $(Split-Path $Config.DataDiskParentPath -Leaf)" -ForegroundColor White
+        }
+        else {
+            Write-Host "  Size: $([math]::Round($Config.DataDiskSize/1GB, 2)) GB" -ForegroundColor White
+        }
+    }
+    
     Write-Host "`nNetwork:" -ForegroundColor Yellow
     Write-Host "  Primary Switch: $($Config.SwitchName)" -ForegroundColor White
     if ($Config.UseAllAvailableSwitches) {
@@ -1156,6 +1167,23 @@ try {
         $createVMParams.AutoConnectVM = $config.AutoConnectVM
     }
     
+    # Add data disk parameters if enabled
+    if ($config.EnableDataDisk) {
+        $createVMParams.EnableDataDisk = $config.EnableDataDisk
+        
+        if ($config.DataDiskType) {
+            $createVMParams.DataDiskType = $config.DataDiskType
+        }
+        
+        if ($config.DataDiskSize) {
+            $createVMParams.DataDiskSize = $config.DataDiskSize
+        }
+        
+        if ($config.DataDiskParentPath) {
+            $createVMParams.DataDiskParentPath = $config.DataDiskParentPath
+        }
+    }
+    
     # Create the VM
     Create-EnhancedVM @createVMParams
     
@@ -1166,6 +1194,9 @@ try {
     Write-Host "VM Name: $VMName" -ForegroundColor White
     Write-Host "Location: $VMFullPath" -ForegroundColor White
     Write-Host "Drive: $($selectedDrive.DriveLetter): ($('{0:N2}' -f $selectedDrive.FreeSpaceGB) GB free remaining)" -ForegroundColor White
+    if ($config.EnableDataDisk) {
+        Write-Host "Data Disk: Enabled ($($config.DataDiskType) - $([math]::Round($config.DataDiskSize/1GB, 2)) GB)" -ForegroundColor White
+    }
     Write-Host "============================" -ForegroundColor Green
     
     #endregion Script Logic
