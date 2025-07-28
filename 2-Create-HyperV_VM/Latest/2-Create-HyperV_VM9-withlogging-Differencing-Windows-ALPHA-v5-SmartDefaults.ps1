@@ -900,12 +900,13 @@ try {
             if (-not $UseSmartDefaults) {
                 Write-Host "`nWould you like to:" -ForegroundColor Yellow
                 Write-Host "[1] Enter a different parent VHDX path" -ForegroundColor White
-                Write-Host "[2] Create a standard (non-differencing) disk instead" -ForegroundColor White
-                Write-Host "[3] Cancel VM creation" -ForegroundColor White
+                Write-Host "[2] Convert an ISO to create the parent VHDX" -ForegroundColor White
+                Write-Host "[3] Create a standard (non-differencing) disk instead" -ForegroundColor White
+                Write-Host "[4] Cancel VM creation" -ForegroundColor White
                 
                 do {
-                    $choice = Read-Host "`nYour choice (1-3)"
-                } while ($choice -notmatch '^[1-3]$')
+                    $choice = Read-Host "`nYour choice (1-4)"
+                } while ($choice -notmatch '^[1-4]$')
                 
                 switch ($choice) {
                     '1' {
@@ -921,12 +922,79 @@ try {
                         }
                     }
                     '2' {
+                        # Convert ISO to VHDX
+                        Write-Host "`n=== ISO to VHDX Conversion ===" -ForegroundColor Cyan
+                        
+                        # Check if conversion script exists
+                        $conversionScript = "D:\Code\HyperV\0-Convert-ISO-VHDX-WIM-PPKG-Injection\Create-VHDX-Working.ps1"
+                        if (-not (Test-Path $conversionScript)) {
+                            Write-Host "ERROR: ISO conversion script not found at:" -ForegroundColor Red
+                            Write-Host "  $conversionScript" -ForegroundColor Yellow
+                            Write-Host "`nPlease ensure the conversion script exists or choose another option." -ForegroundColor White
+                            Start-Sleep -Seconds 3
+                            continue
+                        }
+                        
+                        # Get ISO path
+                        $isoPath = $config.InstallMediaPath
+                        if (-not $isoPath -or -not (Test-Path $isoPath)) {
+                            $isoPath = Read-Host "Enter the path to the ISO file"
+                            if (-not (Test-Path $isoPath)) {
+                                Write-Host "ISO file not found. Please try again." -ForegroundColor Red
+                                Start-Sleep -Seconds 2
+                                continue
+                            }
+                        }
+                        
+                        # Confirm conversion parameters
+                        Write-Host "`nConversion Parameters:" -ForegroundColor Yellow
+                        Write-Host "  ISO Path: $isoPath" -ForegroundColor White
+                        Write-Host "  Output Path: $($config.ParentVHDXPath)" -ForegroundColor White
+                        Write-Host "  VHDX Size: 100GB (Dynamic)" -ForegroundColor White
+                        
+                        $confirm = Read-Host "`nProceed with conversion? (Y/N)"
+                        if ($confirm -eq 'Y') {
+                            Write-Host "`nStarting ISO to VHDX conversion..." -ForegroundColor Green
+                            Write-Host "This may take several minutes..." -ForegroundColor Yellow
+                            
+                            try {
+                                # Ensure output directory exists
+                                $outputDir = Split-Path -Path $config.ParentVHDXPath -Parent
+                                if (-not (Test-Path $outputDir)) {
+                                    New-Item -Path $outputDir -ItemType Directory -Force | Out-Null
+                                }
+                                
+                                # Call the conversion script
+                                & $conversionScript -ISOPath $isoPath -VHDXPath $config.ParentVHDXPath -SizeBytes 100GB
+                                
+                                if (Test-Path $config.ParentVHDXPath) {
+                                    Write-Host "`nConversion completed successfully!" -ForegroundColor Green
+                                    Write-Host "Parent VHDX created at: $($config.ParentVHDXPath)" -ForegroundColor White
+                                    $config.VHDXPath = $config.ParentVHDXPath
+                                }
+                                else {
+                                    throw "Conversion completed but VHDX file not found at expected location"
+                                }
+                            }
+                            catch {
+                                Write-Host "`nERROR: ISO conversion failed: $_" -ForegroundColor Red
+                                Write-Host "Please try another option." -ForegroundColor Yellow
+                                Start-Sleep -Seconds 3
+                                continue
+                            }
+                        }
+                        else {
+                            Write-Host "Conversion cancelled" -ForegroundColor Yellow
+                            continue
+                        }
+                    }
+                    '3' {
                         $config.VMType = 'Standard'
                         $config.Remove('VHDXPath')
                         $config.Remove('ParentVHDXPath')
                         Write-Host "Switched to standard disk creation" -ForegroundColor Green
                     }
-                    '3' {
+                    '4' {
                         Write-Host "VM creation cancelled" -ForegroundColor Yellow
                         return
                     }

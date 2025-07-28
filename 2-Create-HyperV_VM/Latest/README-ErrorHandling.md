@@ -10,8 +10,9 @@ When creating VMs with differencing disks, the script now:
 
 1. **Early Validation**: Checks if the parent VHDX exists before attempting VM creation
 2. **Clear Error Messages**: Provides specific error messages indicating the missing file location
-3. **Recovery Options**: Offers three choices when parent disk is missing:
+3. **Recovery Options**: Offers four choices when parent disk is missing:
    - Enter a different parent VHDX path
+   - Convert an ISO to create the parent VHDX
    - Switch to standard (non-differencing) disk creation
    - Cancel VM creation
 
@@ -36,9 +37,30 @@ Please ensure the file exists at the specified location or update your configura
 
 Would you like to:
 [1] Enter a different parent VHDX path
-[2] Create a standard (non-differencing) disk instead
-[3] Cancel VM creation
+[2] Convert an ISO to create the parent VHDX
+[3] Create a standard (non-differencing) disk instead
+[4] Cancel VM creation
 ```
+
+### ISO to VHDX Conversion Option
+When selecting option [2], the script will:
+
+```
+=== ISO to VHDX Conversion ===
+
+Conversion Parameters:
+  ISO Path: D:\VM\Setup\ISO\Win11_24H2_English_x64_Oct16_2024.iso
+  Output Path: D:\VM\Setup\VHDX\Windows_10_22H2.vhdx
+  VHDX Size: 100GB (Dynamic)
+
+Proceed with conversion? (Y/N)
+```
+
+The conversion:
+- Uses the existing ISO-to-VHDX conversion script
+- Confirms parameters before proceeding
+- Creates the parent VHDX at the expected location
+- Continues with VM creation after successful conversion
 
 ### Missing Data Disk Parent (Interactive Mode)
 ```
