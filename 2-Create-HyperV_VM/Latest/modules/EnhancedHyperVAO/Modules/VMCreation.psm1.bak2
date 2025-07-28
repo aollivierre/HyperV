@@ -288,19 +288,7 @@ function Create-EnhancedVM {
         [bool]$AutoStartVM = $false,
         
         [Parameter()]
-        [bool]$AutoConnectVM = $false,
-        
-        [Parameter()]
-        [bool]$EnableDataDisk = $false,
-        
-        [Parameter()]
-        [string]$DataDiskType = 'Standard',
-        
-        [Parameter()]
-        [uint64]$DataDiskSize = 256GB,
-        
-        [Parameter()]
-        [string]$DataDiskParentPath
+        [bool]$AutoConnectVM = $false
     )
     
     Begin {
@@ -436,39 +424,6 @@ function Create-EnhancedVM {
             # Enable Secure Boot for Generation 2 VMs
             if ($Generation -eq 2) {
                 Enable-VMSecureBoot -VMName $VMName
-            }
-            
-            # Add data disk if requested
-            if ($EnableDataDisk) {
-                Write-Host "`nAdding data disk to VM..."
-                
-                try {
-                    # Determine data disk path
-                    $dataDiskPath = Join-Path -Path $VMFullPath -ChildPath "$VMName-DataDisk.vhdx"
-                    
-                    if ($DataDiskType -eq 'Differencing' -and $DataDiskParentPath) {
-                        # Validate parent disk exists
-                        if (-not (Test-Path $DataDiskParentPath)) {
-                            throw "Data disk parent path not found: $DataDiskParentPath"
-                        }
-                        
-                        Write-Host "Creating differencing data disk from parent: $(Split-Path $DataDiskParentPath -Leaf)"
-                        $newDataDisk = New-VHD -Path $dataDiskPath -ParentPath $DataDiskParentPath -Differencing
-                    }
-                    else {
-                        # Create standard dynamic disk
-                        Write-Host "Creating new dynamic data disk ($([math]::Round($DataDiskSize/1GB, 2)) GB)"
-                        $newDataDisk = New-VHD -Path $dataDiskPath -SizeBytes $DataDiskSize -Dynamic -BlockSizeBytes 32MB
-                    }
-                    
-                    # Attach data disk to VM
-                    Add-VMHardDiskDrive -VMName $VMName -Path $dataDiskPath -ControllerType SCSI -ControllerNumber 0 -ControllerLocation 1
-                    Write-Host "Data disk attached successfully"
-                }
-                catch {
-                    Write-Warning "Failed to add data disk: $_"
-                    # Continue with VM creation even if data disk fails
-                }
             }
             
             Write-Host "VM '$VMName' created successfully"
