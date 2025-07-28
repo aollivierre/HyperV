@@ -13,4 +13,10 @@
     # VMNamePrefixFormat = "{0:D3} - MGMT 001 - PS - WAC - SM - RSAT - Desktop Exp"
     VMNamePrefixFormat = "{0:D3} - XYZ Lab - DC1 - Server Desktop"
     ProcessorCount     = 24
+    
+    # Data Disk Configuration (NEW FEATURE - Optional second disk)
+    EnableDataDisk       = $false     # Set to $true to create a second disk for data
+    DataDiskType         = "Differencing"  # "Standard" or "Differencing"
+    DataDiskSize         = 256GB      # Size for standard data disk (ignored for differencing)
+    DataDiskParentPath   = "D:\VM\Setup\VHDX\DataDiskParent_256GB.vhdx"  # Parent for differencing data disk
 }

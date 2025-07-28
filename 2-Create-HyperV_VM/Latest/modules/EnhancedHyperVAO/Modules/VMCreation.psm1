@@ -92,6 +92,22 @@ function New-CustomVMWithDifferencingDisk {
 
             if ($UseDifferencing) {
                 Write-Host "Creating differencing disk"
+                
+                # Validate parent disk exists
+                if (-not (Test-Path $ParentVHDPath)) {
+                    Write-Host "`nERROR: Parent VHDX not found at: $ParentVHDPath" -ForegroundColor Red
+                    Write-Host "`nPlease ensure the parent VHDX exists at the specified location." -ForegroundColor Yellow
+                    Write-Host "You can:" -ForegroundColor Yellow
+                    Write-Host "  1. Copy the parent VHDX to the expected location" -ForegroundColor White
+                    Write-Host "  2. Update the configuration file with the correct path" -ForegroundColor White
+                    Write-Host "  3. Create a new parent VHDX if needed" -ForegroundColor White
+                    
+                    # Remove the empty VM that was created
+                    Write-Host "`nCleaning up partially created VM..." -ForegroundColor Yellow
+                    Remove-VM -Name $VMName -Force
+                    throw "Parent VHDX not found: $ParentVHDPath"
+                }
+                
                 $vhdParams = @{
                     Path = $VHDPath
                     ParentPath = $ParentVHDPath
@@ -449,7 +465,12 @@ function Create-EnhancedVM {
                     if ($DataDiskType -eq 'Differencing' -and $DataDiskParentPath) {
                         # Validate parent disk exists
                         if (-not (Test-Path $DataDiskParentPath)) {
-                            throw "Data disk parent path not found: $DataDiskParentPath"
+                            Write-Host "`nWARNING: Data disk parent not found: $DataDiskParentPath" -ForegroundColor Yellow
+                            Write-Host "The data disk will be skipped. The VM will be created with only the primary disk." -ForegroundColor Yellow
+                            Write-Host "`nTo add a data disk later, ensure the parent disk exists at:" -ForegroundColor White
+                            Write-Host "  $DataDiskParentPath" -ForegroundColor Gray
+                            Write-Host "Or create it using: .\Create-DataDiskParent.ps1" -ForegroundColor White
+                            return  # Skip data disk creation but continue with VM
                         }
                         
                         Write-Host "Creating differencing data disk from parent: $(Split-Path $DataDiskParentPath -Leaf)"
