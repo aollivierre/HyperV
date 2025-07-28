@@ -24,4 +24,10 @@
     UseAllAvailableSwitches = $true  # Set to $true to add all available switches as NICs
     AutoStartVM          = $true     # Do not auto-start server VMs
     AutoConnectVM        = $true     # Do not auto-connect to server VMs
+    
+    # Data Disk Configuration (NEW FEATURE - Optional second disk)
+    EnableDataDisk       = $false     # Set to $true to create a second disk for data
+    DataDiskType         = "Differencing"  # "Standard" or "Differencing"
+    DataDiskSize         = 256GB      # Size for standard data disk (ignored for differencing)
+    DataDiskParentPath   = "D:\VM\Setup\VHDX\DataDiskParent_256GB.vhdx"  # Parent for differencing data disk
 }

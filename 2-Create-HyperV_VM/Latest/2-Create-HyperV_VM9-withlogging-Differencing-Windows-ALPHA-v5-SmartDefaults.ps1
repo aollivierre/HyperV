@@ -952,6 +952,53 @@ try {
             $config.VHDXPath = $config.ParentVHDXPath
             Write-Log -Message "Set VHDXPath from ParentVHDXPath for differencing disk" -Level 'INFO'
         }
+        
+        # Validate parent VHDX exists early
+        if (-not (Test-Path $config.ParentVHDXPath)) {
+            Write-Host "`nERROR: Parent VHDX file not found!" -ForegroundColor Red
+            Write-Host "Expected location: $($config.ParentVHDXPath)" -ForegroundColor Yellow
+            Write-Host "`nThe parent VHDX is required for creating differencing disks." -ForegroundColor White
+            Write-Host "Please ensure the file exists at the specified location or update your configuration." -ForegroundColor White
+            
+            if (-not $UseSmartDefaults) {
+                Write-Host "`nWould you like to:" -ForegroundColor Yellow
+                Write-Host "[1] Enter a different parent VHDX path" -ForegroundColor White
+                Write-Host "[2] Create a standard (non-differencing) disk instead" -ForegroundColor White
+                Write-Host "[3] Cancel VM creation" -ForegroundColor White
+                
+                do {
+                    $choice = Read-Host "`nYour choice (1-3)"
+                } while ($choice -notmatch '^[1-3]$')
+                
+                switch ($choice) {
+                    '1' {
+                        $newPath = Read-Host "Enter the correct parent VHDX path"
+                        if (Test-Path $newPath) {
+                            $config.ParentVHDXPath = $newPath
+                            $config.VHDXPath = $newPath
+                            Write-Host "Parent VHDX path updated successfully" -ForegroundColor Green
+                        }
+                        else {
+                            Write-Host "Path not found. Exiting..." -ForegroundColor Red
+                            throw "Parent VHDX not found"
+                        }
+                    }
+                    '2' {
+                        $config.VMType = 'Standard'
+                        $config.Remove('VHDXPath')
+                        $config.Remove('ParentVHDXPath')
+                        Write-Host "Switched to standard disk creation" -ForegroundColor Green
+                    }
+                    '3' {
+                        Write-Host "VM creation cancelled" -ForegroundColor Yellow
+                        return
+                    }
+                }
+            }
+            else {
+                throw "Parent VHDX not found: $($config.ParentVHDXPath)"
+            }
+        }
     }
     
     # Show configuration summary
