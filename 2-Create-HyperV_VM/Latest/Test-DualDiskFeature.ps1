@@ -158,11 +158,11 @@ try {
     
     # Success summary
     Write-Host "`n=== Test Results ===" -ForegroundColor Green
-    Write-Host "✓ Parent data disk exists" -ForegroundColor Green
-    Write-Host "✓ VM created successfully" -ForegroundColor Green
-    Write-Host "✓ VM has 2 disks attached" -ForegroundColor Green
-    Write-Host "✓ Data disk is differencing type" -ForegroundColor Green
-    Write-Host "✓ Data disk has correct parent" -ForegroundColor Green
+    Write-Host "Parent data disk exists" -ForegroundColor Green
+    Write-Host "VM created successfully" -ForegroundColor Green
+    Write-Host "VM has 2 disks attached" -ForegroundColor Green
+    Write-Host "Data disk is differencing type" -ForegroundColor Green
+    Write-Host "Data disk has correct parent" -ForegroundColor Green
     Write-Host "`nDual disk feature is working correctly!" -ForegroundColor Green
     
     # Cleanup option
