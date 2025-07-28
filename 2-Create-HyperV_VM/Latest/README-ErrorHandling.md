@@ -18,9 +18,11 @@ When creating VMs with differencing disks, the script now:
 ### Data Disk (Dual Disk Feature)
 For the optional second data disk:
 
-1. **Graceful Degradation**: If the data disk parent is missing, the VM is still created with just the primary disk
-2. **Warning Messages**: Clear warnings explain why the data disk was skipped
-3. **Helpful Guidance**: Instructions on how to create the missing parent disk
+1. **Interactive Mode**: Prompts to create the parent disk if missing
+2. **Auto-Creation in Smart Defaults**: Automatically creates the parent disk when using `-UseSmartDefaults`
+3. **Graceful Degradation**: If creation fails, the VM is still created with just the primary disk
+4. **Warning Messages**: Clear warnings explain why the data disk was skipped
+5. **Helpful Guidance**: Instructions on how to create the missing parent disk
 
 ## Error Messages
 
@@ -38,14 +40,26 @@ Would you like to:
 [3] Cancel VM creation
 ```
 
-### Missing Data Disk Parent
+### Missing Data Disk Parent (Interactive Mode)
 ```
 WARNING: Data disk parent not found: D:\VM\Setup\VHDX\DataDiskParent_256GB.vhdx
-The data disk will be skipped. The VM will be created with only the primary disk.
+Would you like to create it now? (Y/N)
+```
 
-To add a data disk later, ensure the parent disk exists at:
-  D:\VM\Setup\VHDX\DataDiskParent_256GB.vhdx
-Or create it using: .\Create-DataDiskParent.ps1
+If you choose Yes, the script will:
+- Create the directory if needed
+- Create a 256GB dynamic VHDX
+- Format it with NTFS
+- Add a marker file
+- Continue with dual disk VM creation
+
+### Missing Data Disk Parent (Smart Defaults Mode)
+When using `-UseSmartDefaults`, the script automatically:
+```
+Data disk parent not found. Creating it automatically...
+Creating parent data disk...
+Formatting parent disk...
+Parent data disk created successfully!
 ```
 
 ## Benefits

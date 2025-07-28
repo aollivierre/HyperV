@@ -466,11 +466,58 @@ function Create-EnhancedVM {
                         # Validate parent disk exists
                         if (-not (Test-Path $DataDiskParentPath)) {
                             Write-Host "`nWARNING: Data disk parent not found: $DataDiskParentPath" -ForegroundColor Yellow
-                            Write-Host "The data disk will be skipped. The VM will be created with only the primary disk." -ForegroundColor Yellow
-                            Write-Host "`nTo add a data disk later, ensure the parent disk exists at:" -ForegroundColor White
-                            Write-Host "  $DataDiskParentPath" -ForegroundColor Gray
-                            Write-Host "Or create it using: .\Create-DataDiskParent.ps1" -ForegroundColor White
-                            return  # Skip data disk creation but continue with VM
+                            Write-Host "Would you like to create it now? (Y/N)" -ForegroundColor Yellow
+                            
+                            $createParent = Read-Host
+                            if ($createParent -eq 'Y') {
+                                Write-Host "`nCreating parent data disk..." -ForegroundColor Green
+                                try {
+                                    # Create the parent disk
+                                    $parentDir = Split-Path -Path $DataDiskParentPath -Parent
+                                    if (-not (Test-Path $parentDir)) {
+                                        New-Item -Path $parentDir -ItemType Directory -Force | Out-Null
+                                    }
+                                    
+                                    # Create 256GB dynamic parent disk
+                                    $parentVHD = New-VHD -Path $DataDiskParentPath -SizeBytes $DataDiskSize -Dynamic -BlockSizeBytes 32MB
+                                    
+                                    # Mount and format the parent disk
+                                    Write-Host "Formatting parent disk..." -ForegroundColor White
+                                    $mounted = Mount-VHD -Path $DataDiskParentPath -Passthru
+                                    $disk = $mounted | Initialize-Disk -PartitionStyle GPT -PassThru
+                                    $partition = $disk | New-Partition -AssignDriveLetter -UseMaximumSize
+                                    $volume = $partition | Format-Volume -FileSystem NTFS -NewFileSystemLabel "DATA" -Confirm:$false
+                                    
+                                    # Create marker file
+                                    $driveLetter = $partition.DriveLetter
+                                    $markerPath = "${driveLetter}:\__DATA_DISK_PARENT__.txt"
+                                    $markerContent = @"
+This is a parent disk for Hyper-V data disks.
+Created: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+Size: $([math]::Round($DataDiskSize/1GB, 2)) GB
+
+DO NOT DELETE THIS FILE
+Use this disk only as a parent for differencing disks
+"@
+                                    Set-Content -Path $markerPath -Value $markerContent
+                                    
+                                    # Dismount the parent disk
+                                    Dismount-VHD -Path $DataDiskParentPath
+                                    
+                                    Write-Host "Parent data disk created successfully!" -ForegroundColor Green
+                                }
+                                catch {
+                                    Write-Warning "Failed to create parent disk: $_"
+                                    Write-Host "The data disk will be skipped. The VM will be created with only the primary disk." -ForegroundColor Yellow
+                                    return
+                                }
+                            }
+                            else {
+                                Write-Host "The data disk will be skipped. The VM will be created with only the primary disk." -ForegroundColor Yellow
+                                Write-Host "`nTo add a data disk later, create the parent disk using:" -ForegroundColor White
+                                Write-Host "  .\Create-DataDiskParent.ps1 -Path `"$DataDiskParentPath`"" -ForegroundColor Gray
+                                return  # Skip data disk creation but continue with VM
+                            }
                         }
                         
                         Write-Host "Creating differencing data disk from parent: $(Split-Path $DataDiskParentPath -Leaf)"

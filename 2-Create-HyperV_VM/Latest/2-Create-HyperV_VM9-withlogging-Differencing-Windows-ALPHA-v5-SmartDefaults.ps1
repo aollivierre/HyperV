@@ -1164,7 +1164,39 @@ try {
         }
         
         if ($config.DataDiskParentPath) {
-            $createVMParams.DataDiskParentPath = $config.DataDiskParentPath
+            # Check if parent exists when using smart defaults
+            if ($UseSmartDefaults -and $config.DataDiskType -eq 'Differencing' -and -not (Test-Path $config.DataDiskParentPath)) {
+                Write-Log -Message "Data disk parent not found. Creating it automatically..." -Level 'INFO'
+                Write-Host "`nData disk parent not found. Creating it automatically..." -ForegroundColor Yellow
+                
+                try {
+                    # Ensure directory exists
+                    $parentDir = Split-Path -Path $config.DataDiskParentPath -Parent
+                    if (-not (Test-Path $parentDir)) {
+                        New-Item -Path $parentDir -ItemType Directory -Force | Out-Null
+                    }
+                    
+                    # Run the parent disk creation script
+                    $scriptPath = Join-Path -Path $PSScriptRoot -ChildPath "Create-DataDiskParent.ps1"
+                    if (Test-Path $scriptPath) {
+                        & $scriptPath -Path $config.DataDiskParentPath -Size $config.DataDiskSize
+                        Write-Host "Parent data disk created successfully" -ForegroundColor Green
+                    }
+                    else {
+                        Write-Warning "Create-DataDiskParent.ps1 script not found. Data disk will be skipped."
+                        $config.EnableDataDisk = $false
+                    }
+                }
+                catch {
+                    Write-Warning "Failed to auto-create parent disk: $_"
+                    Write-Warning "Data disk feature will be disabled for this VM"
+                    $config.EnableDataDisk = $false
+                }
+            }
+            
+            if ($config.EnableDataDisk) {
+                $createVMParams.DataDiskParentPath = $config.DataDiskParentPath
+            }
         }
     }
     
