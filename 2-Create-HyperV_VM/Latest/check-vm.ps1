@@ -1,0 +1,1 @@
+Get-VM | Where-Object { $_.Name -like "*094*" } | Select-Object Name, State | Format-Table -AutoSize
