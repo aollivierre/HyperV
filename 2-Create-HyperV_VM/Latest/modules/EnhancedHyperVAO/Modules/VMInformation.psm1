@@ -119,10 +119,32 @@ function Get-VMConfiguration {
                             # Try VSCode first if available
                             $vscodePath = Get-Command code -ErrorAction SilentlyContinue
                             if ($vscodePath) {
-                                Start-Process code -ArgumentList "`"$configPath`"" -Wait
+                                Write-Host "`nOpening configuration in VS Code..." -ForegroundColor Yellow
+                                Write-Host "Please edit the file and save it, then close VS Code or the file tab." -ForegroundColor Yellow
+                                Write-Host "The script will wait for you to finish editing." -ForegroundColor Yellow
+                                
+                                # Get initial file modification time
+                                $initialModTime = (Get-Item $configPath).LastWriteTime
+                                
+                                # Open VS Code (without -Wait as it doesn't work properly with VS Code)
+                                Start-Process code -ArgumentList "`"$configPath`""
+                                
+                                # Wait for user to indicate they're done
+                                Write-Host "`nPress Enter when you have finished editing and saved the file..." -ForegroundColor Cyan
+                                Read-Host
+                                
+                                # Check if file was actually modified
+                                $currentModTime = (Get-Item $configPath).LastWriteTime
+                                if ($currentModTime -gt $initialModTime) {
+                                    Write-Host "File was modified. Reloading configuration..." -ForegroundColor Green
+                                }
+                                else {
+                                    Write-Host "File was not modified." -ForegroundColor Yellow
+                                }
                             }
                             else {
-                                # Fall back to notepad
+                                # Fall back to notepad (which does support -Wait properly)
+                                Write-Host "`nOpening configuration in Notepad..." -ForegroundColor Yellow
                                 Start-Process notepad -ArgumentList "`"$configPath`"" -Wait
                             }
                             
@@ -241,11 +263,26 @@ function Get-NextVMNamePrefix {
 
             if ($null -ne $mostRecentVM) {
                 Write-Host "Most recent VM found: $($mostRecentVM.Name)"
-                if ($mostRecentVM.Name -match '^\d+') {
-                    $prefixNumber = [int]$matches[0]
+                # Look for any 3-digit number at the start of the VM name (including after whitespace)
+                if ($mostRecentVM.Name -match '^(\d{3})\s*-') {
+                    $prefixNumber = [int]$matches[1]
                     Write-Host "Extracted prefix number: $prefixNumber"
                 } else {
-                    Write-Host "Most recent VM name does not start with a number"
+                    Write-Host "Most recent VM name does not follow expected pattern (###-...)"
+                    # Try to find the highest numbered VM
+                    $allVMs = Get-VM | Where-Object { $_.Name -match '^(\d{3})\s*-' }
+                    if ($allVMs) {
+                        $highestNumber = $allVMs | ForEach-Object {
+                            if ($_.Name -match '^(\d{3})\s*-') {
+                                [int]$matches[1]
+                            }
+                        } | Sort-Object -Descending | Select-Object -First 1
+                        
+                        if ($highestNumber) {
+                            $prefixNumber = $highestNumber
+                            Write-Host "Found highest VM number from all VMs: $prefixNumber"
+                        }
+                    }
                 }
             } else {
                 Write-Host "No existing VMs found"
