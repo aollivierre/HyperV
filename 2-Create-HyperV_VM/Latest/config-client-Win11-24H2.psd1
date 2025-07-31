@@ -17,7 +17,7 @@
     
     # VM settings
     Generation           = 2
-    VMNamePrefixFormat   = "{0:D3} - ABC - TDD - AB - Unit - Integration - Testing - 01"
+    VMNamePrefixFormat   = "{0:D3} - XYZ Lab - Dev01"
     ProcessorCount       = "All Cores"  # Smart default - uses all logical processors (including hyperthreading)
     
     # Advanced options
