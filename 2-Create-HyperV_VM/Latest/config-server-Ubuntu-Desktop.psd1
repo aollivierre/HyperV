@@ -13,4 +13,10 @@
     
     # Network configuration
     UseAllAvailableSwitches = $true  # Add all available switches as NICs
+    
+    # Data Disk Configuration (NEW FEATURE - Optional second disk)
+    EnableDataDisk       = $false     # Set to $true to create a second disk for data
+    DataDiskType         = "Standard"  # "Standard" or "Differencing"
+    DataDiskSize         = 256GB      # Size for standard data disk
+    DataDiskParentPath   = "D:\VM\Setup\VHDX\DataDiskParent_256GB.vhdx"  # Parent for differencing data disk (not used when Type=Standard)
 }

@@ -24,5 +24,11 @@
     AutoStartVM          = $true      # Automatically start VM after creation
     AutoConnectVM        = $true      # Automatically open VM console after creation
     
+    # Data Disk Configuration (NEW FEATURE - Optional second disk)
+    EnableDataDisk       = $false     # Set to $true to create a second disk for data
+    DataDiskType         = "Standard"  # "Standard" or "Differencing" (Standard for new disk example)
+    DataDiskSize         = 256GB      # Size for standard data disk
+    DataDiskParentPath   = "D:\VM\Setup\VHDX\DataDiskParent_256GB.vhdx"  # Parent for differencing data disk (not used when Type=Standard)
+    
     # Note: No ParentVHDXPath needed for new disk creation
 }

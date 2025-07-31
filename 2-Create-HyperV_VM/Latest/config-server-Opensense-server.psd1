@@ -18,4 +18,10 @@
     # Alternatively, you can specify specific switches:
     # ExternalSwitchName = "Realtek Gaming 2.5GbE Family Controller - Virtual Switch"  # WAN
     # InternalSwitchName = "OPNsense-LAN-Private"  # LAN
+    
+    # Data Disk Configuration (NEW FEATURE - Optional second disk)
+    EnableDataDisk       = $false     # Set to $true to create a second disk for data
+    DataDiskType         = "Standard"  # "Standard" or "Differencing"
+    DataDiskSize         = 256GB      # Size for standard data disk
+    DataDiskParentPath   = "D:\VM\Setup\VHDX\DataDiskParent_256GB.vhdx"  # Parent for differencing data disk (not used when Type=Standard)
 }

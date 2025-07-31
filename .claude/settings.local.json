@@ -6,7 +6,8 @@
       "Bash(powershell:*)",
       "Bash(cmd /c:*)",
       "Bash(git merge:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git cherry-pick:*)"
     ],
     "deny": []
   }
