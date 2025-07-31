@@ -399,19 +399,36 @@ function Create-EnhancedVM {
             
             # Add all available switches as NICs if requested
             if ($UseAllAvailableSwitches) {
-                Write-Host "Adding all available switches as network adapters..."
+                Write-Host "`nConfiguring multiple network adapters..." -ForegroundColor Yellow
                 $allSwitches = Get-VMSwitch | Where-Object { $_.Name -ne $ExternalSwitchName -and $_.Name -ne $InternalSwitchName }
-                $nicIndex = 2
                 
-                foreach ($switch in $allSwitches) {
-                    try {
-                        $nicName = "NIC$nicIndex-$($switch.Name)"
-                        Add-VMNetworkAdapter -VMName $VMName -Name $nicName -SwitchName $switch.Name
-                        Write-Host "  Added NIC: $nicName connected to switch: $($switch.Name)"
-                        $nicIndex++
+                if ($allSwitches.Count -eq 0) {
+                    Write-Host "  No additional switches found to add" -ForegroundColor Yellow
+                }
+                else {
+                    Write-Host "  Found $($allSwitches.Count) additional switch(es) to add:" -ForegroundColor Green
+                    $nicIndex = 2
+                    
+                    foreach ($switch in $allSwitches) {
+                        try {
+                            $nicName = "NIC$nicIndex-$($switch.Name)"
+                            Add-VMNetworkAdapter -VMName $VMName -Name $nicName -SwitchName $switch.Name
+                            Write-Host "  [$nicIndex] Added NIC: $nicName" -ForegroundColor Green
+                            Write-Host "      Connected to: $($switch.Name) ($($switch.SwitchType))" -ForegroundColor Gray
+                            $nicIndex++
+                        }
+                        catch {
+                            Write-Warning "Failed to add NIC for switch '$($switch.Name)': $_"
+                        }
                     }
-                    catch {
-                        Write-Warning "Failed to add NIC for switch '$($switch.Name)': $_"
+                    
+                    # Summary of network configuration
+                    Write-Host "`nNetwork Configuration Summary:" -ForegroundColor Cyan
+                    $allNics = Get-VMNetworkAdapter -VMName $VMName
+                    $nicNum = 1
+                    foreach ($nic in $allNics) {
+                        Write-Host "  NIC ${nicNum}: $($nic.Name) -> $($nic.SwitchName)" -ForegroundColor White
+                        $nicNum++
                     }
                 }
             }

@@ -590,6 +590,58 @@ function Get-SmartVirtualSwitch {
         return $RequestedSwitch
     }
 }
+
+function Get-MultiNICConfiguration {
+    <#
+    .SYNOPSIS
+        Prompts user for multi-NIC configuration if needed.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [hashtable]$Config
+    )
+    
+    # Check if UseAllAvailableSwitches is not explicitly set
+    if (-not $Config.ContainsKey('UseAllAvailableSwitches')) {
+        # Check available switches
+        $allSwitches = Get-VMSwitch
+        
+        if ($allSwitches.Count -gt 1) {
+            Write-Host "`n=== Multiple Network Switches Detected ===" -ForegroundColor Yellow
+            Write-Host "Found $($allSwitches.Count) virtual switches:" -ForegroundColor White
+            
+            $switchNum = 1
+            foreach ($switch in $allSwitches) {
+                Write-Host "  [$switchNum] $($switch.Name) ($($switch.SwitchType))" -ForegroundColor Gray
+                $switchNum++
+            }
+            
+            Write-Host "`nWould you like to add NICs for all available switches?" -ForegroundColor Yellow
+            Write-Host "This is useful for:" -ForegroundColor Gray
+            Write-Host "  - Firewall VMs (OPNsense, pfSense)" -ForegroundColor Gray
+            Write-Host "  - Router VMs" -ForegroundColor Gray
+            Write-Host "  - Multi-homed servers" -ForegroundColor Gray
+            
+            $response = Read-Host "`nAdd all switches as NICs? (Y/N) [Default: N]"
+            
+            if ($response -match '^[Yy]') {
+                $Config.UseAllAvailableSwitches = $true
+                Write-Host "Multi-NIC configuration enabled" -ForegroundColor Green
+            }
+            else {
+                $Config.UseAllAvailableSwitches = $false
+                Write-Host "Single NIC configuration selected" -ForegroundColor White
+            }
+        }
+        else {
+            # Only one switch available, no need to prompt
+            $Config.UseAllAvailableSwitches = $false
+        }
+    }
+    
+    return $Config
+}
 #endregion Network Functions
 
 #region Configuration Processing
@@ -757,7 +809,13 @@ function Show-ConfigurationSummary {
     Write-Host "  Memory: $($Config.MemoryStartupBytes) (Min: $($Config.MemoryMinimumBytes), Max: $($Config.MemoryMaximumBytes))" -ForegroundColor White
     
     Write-Host "`nNetwork:" -ForegroundColor Yellow
-    Write-Host "  Switch: $($Config.SwitchName)" -ForegroundColor White
+    Write-Host "  Primary Switch: $($Config.SwitchName)" -ForegroundColor White
+    if ($Config.UseAllAvailableSwitches) {
+        Write-Host "  Multi-NIC Mode: ENABLED (Will add all available switches)" -ForegroundColor Green
+    }
+    else {
+        Write-Host "  Multi-NIC Mode: Disabled" -ForegroundColor Gray
+    }
     
     Write-Host "`nVM Settings:" -ForegroundColor Yellow
     Write-Host "  Generation: $($Config.Generation)" -ForegroundColor White
@@ -871,6 +929,11 @@ try {
     
     # Process configuration with smart defaults
     $config = Process-SmartConfiguration -Config $config -SelectedDrive $selectedDrive.DriveLetter
+    
+    # Check for multi-NIC configuration if not using smart defaults
+    if (-not $UseSmartDefaults) {
+        $config = Get-MultiNICConfiguration -Config $config
+    }
     
     # If VMType is Differencing but VHDXPath is not set, set it from ParentVHDXPath
     if ($config.VMType -eq 'Differencing' -and $config.ContainsKey('ParentVHDXPath')) {
