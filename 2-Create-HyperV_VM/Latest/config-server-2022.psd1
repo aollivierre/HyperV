@@ -13,4 +13,7 @@
     # VMNamePrefixFormat = "{0:D3} - MGMT 001 - PS - WAC - SM - RSAT - Desktop Exp"
     VMNamePrefixFormat = "{0:D3} - XYZ Lab - DC1 - Server Desktop"
     ProcessorCount     = 24
+    
+    # Network configuration
+    UseAllAvailableSwitches = $true  # Add all available switches as NICs
 }

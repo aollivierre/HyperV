@@ -10,4 +10,7 @@
     Generation           = 2
     VMNamePrefixFormat   = "{0:D3} - Ubuntu - Claude Code - 01"
     ProcessorCount       = 24
+    
+    # Network configuration
+    UseAllAvailableSwitches = $true  # Add all available switches as NICs
 }

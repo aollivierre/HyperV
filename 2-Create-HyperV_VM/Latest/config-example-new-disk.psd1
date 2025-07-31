@@ -20,7 +20,7 @@
     MemoryMaximumBytes   = "8GB"
     
     # Advanced options
-    UseAllAvailableSwitches = $false  # Set to $true to add all available switches as NICs
+    UseAllAvailableSwitches = $true  # Set to $true to add all available switches as NICs
     AutoStartVM          = $true      # Automatically start VM after creation
     AutoConnectVM        = $true      # Automatically open VM console after creation
     

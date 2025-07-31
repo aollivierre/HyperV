@@ -16,4 +16,7 @@
     # VHDXPath          = "D:\VM\Setup\VHDX\Windows_11_Template.vhdx"
     
     # All other settings (memory, paths, generation, etc.) will be auto-configured
+    
+    # Network configuration
+    UseAllAvailableSwitches = $true  # Add all available switches as NICs
 }
