@@ -7,7 +7,11 @@
       "Bash(cmd /c:*)",
       "Bash(git merge:*)",
       "Bash(git stash:*)",
+<<<<<<< Updated upstream
       "Bash(git cherry-pick:*)"
+=======
+      "Bash(git merge:*)"
+>>>>>>> Stashed changes
     ],
     "deny": []
   }
