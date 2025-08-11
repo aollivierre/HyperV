@@ -149,14 +149,39 @@ function Get-VMConfiguration {
                             }
                             
                             # Reload configuration after editing
-                            $config = Import-PowerShellDataFile @importParams
-                            
-                            Write-Host "`nUpdated Configuration:" -ForegroundColor Cyan
-                            Write-Host "----------------------------------------" -ForegroundColor Cyan
-                            $config.GetEnumerator() | Sort-Object Key | ForEach-Object {
-                                Write-Host ("{0,-20} = {1}" -f $_.Key, $_.Value)
+                            try {
+                                $reloadedConfig = Import-PowerShellDataFile @importParams
+                                
+                                # Ensure we have a hashtable
+                                if ($reloadedConfig -is [System.Collections.Hashtable]) {
+                                    $config = $reloadedConfig
+                                }
+                                elseif ($reloadedConfig -is [System.Object[]]) {
+                                    # If it's an array, try to get the first hashtable element
+                                    $hashtableElement = $reloadedConfig | Where-Object { $_ -is [System.Collections.Hashtable] } | Select-Object -First 1
+                                    if ($hashtableElement) {
+                                        $config = $hashtableElement
+                                        Write-Warning "Configuration file returned multiple objects. Using the first hashtable found."
+                                    }
+                                    else {
+                                        throw "Configuration file does not contain a valid hashtable"
+                                    }
+                                }
+                                else {
+                                    throw "Configuration file returned unexpected type: $($reloadedConfig.GetType().Name)"
+                                }
+                                
+                                Write-Host "`nUpdated Configuration:" -ForegroundColor Cyan
+                                Write-Host "----------------------------------------" -ForegroundColor Cyan
+                                $config.GetEnumerator() | Sort-Object Key | ForEach-Object {
+                                    Write-Host ("{0,-20} = {1}" -f $_.Key, $_.Value)
+                                }
+                                Write-Host "----------------------------------------" -ForegroundColor Cyan
                             }
-                            Write-Host "----------------------------------------" -ForegroundColor Cyan
+                            catch {
+                                Write-Error "Failed to reload configuration after editing: $_"
+                                Write-Host "The configuration file may have syntax errors. Please check the file format." -ForegroundColor Red
+                            }
                         }
                         catch {
                             Write-Error "Failed to open editor or reload configuration: $_"
@@ -257,35 +282,31 @@ function Get-NextVMNamePrefix {
 
     Process {
         try {
-            Write-Host "Retrieving the most recent VM"
-            $mostRecentVM = Get-VM | Sort-Object -Property CreationTime -Descending | Select-Object -First 1
+            Write-Host "Finding highest numbered VM..."
+            
+            # Always scan ALL VMs to find the highest number
+            $allVMs = Get-VM | Where-Object { $_.Name -match '^(\d{3})\s*-' }
             $prefixNumber = 0
-
-            if ($null -ne $mostRecentVM) {
-                Write-Host "Most recent VM found: $($mostRecentVM.Name)"
-                # Look for any 3-digit number at the start of the VM name (including after whitespace)
-                if ($mostRecentVM.Name -match '^(\d{3})\s*-') {
-                    $prefixNumber = [int]$matches[1]
-                    Write-Host "Extracted prefix number: $prefixNumber"
-                } else {
-                    Write-Host "Most recent VM name does not follow expected pattern (###-...)"
-                    # Try to find the highest numbered VM
-                    $allVMs = Get-VM | Where-Object { $_.Name -match '^(\d{3})\s*-' }
-                    if ($allVMs) {
-                        $highestNumber = $allVMs | ForEach-Object {
-                            if ($_.Name -match '^(\d{3})\s*-') {
-                                [int]$matches[1]
-                            }
-                        } | Sort-Object -Descending | Select-Object -First 1
-                        
-                        if ($highestNumber) {
-                            $prefixNumber = $highestNumber
-                            Write-Host "Found highest VM number from all VMs: $prefixNumber"
-                        }
+            
+            if ($allVMs) {
+                $highestNumber = $allVMs | ForEach-Object {
+                    if ($_.Name -match '^(\d{3})\s*-') {
+                        [int]$matches[1]
+                    }
+                } | Sort-Object -Descending | Select-Object -First 1
+                
+                if ($highestNumber) {
+                    $prefixNumber = $highestNumber
+                    Write-Host "Found highest VM number: $prefixNumber"
+                    
+                    # Show which VM has this number
+                    $highestVM = $allVMs | Where-Object { $_.Name -match "^0*$highestNumber\s*-" } | Select-Object -First 1
+                    if ($highestVM) {
+                        Write-Host "VM with highest number: $($highestVM.Name)"
                     }
                 }
             } else {
-                Write-Host "No existing VMs found"
+                Write-Host "No numbered VMs found (pattern: ###-...)"
             }
 
             $nextPrefixNumber = $prefixNumber + 1

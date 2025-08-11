@@ -17,7 +17,7 @@
     
     # VM settings
     Generation           = 2
-    VMNamePrefixFormat   = "{0:D3} - XYZ Lab - Dev01"
+    VMNamePrefixFormat   = "{0:D3} - XYZ Lab - SetupLab01"
     ProcessorCount       = "All Cores"  # Smart default - uses all logical processors (including hyperthreading)
     
     # Advanced options

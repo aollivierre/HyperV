@@ -912,6 +912,24 @@ try {
         exit 1
     }
     
+    # Ensure config is a hashtable (VS Code editing can sometimes return an array)
+    if ($config -is [System.Object[]]) {
+        Write-Log -Message "Configuration returned as array, extracting hashtable" -Level 'DEBUG'
+        $hashtableElement = $config | Where-Object { $_ -is [System.Collections.Hashtable] } | Select-Object -First 1
+        if ($hashtableElement) {
+            $config = $hashtableElement
+            Write-Log -Message "Successfully extracted hashtable from array" -Level 'DEBUG'
+        }
+        else {
+            Write-Log -Message "No hashtable found in configuration array" -Level 'ERROR'
+            exit 1
+        }
+    }
+    elseif ($config -isnot [System.Collections.Hashtable]) {
+        Write-Log -Message "Configuration is not a hashtable: $($config.GetType().Name)" -Level 'ERROR'
+        exit 1
+    }
+    
     # Drive selection process
     Write-Log -Message "Starting drive selection process" -Level 'INFO'
     
